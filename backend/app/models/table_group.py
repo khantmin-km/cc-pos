@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Table, func
+from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, String, Table, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,8 +13,8 @@ from app.db.base import Base
 table_group_tables = Table(
     "table_group_tables",
     Base.metadata,
-    mapped_column("table_group_id", UUID(as_uuid=True), ForeignKey("table_groups.id"), primary_key=True),
-    mapped_column("physical_table_id", UUID(as_uuid=True), ForeignKey("physical_tables.id"), primary_key=True),
+    Column("table_group_id", UUID(as_uuid=True), ForeignKey("table_groups.id"), primary_key=True),
+    Column("physical_table_id", UUID(as_uuid=True), ForeignKey("physical_tables.id"), primary_key=True),
 )
 
 
