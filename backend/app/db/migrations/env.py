@@ -1,8 +1,13 @@
 # backend/app/db/migrations/env.py
 from logging.config import fileConfig
+import sys
+from pathlib import Path
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+
+BASE_DIR = Path(__file__).resolve().parents[3]
+sys.path.append(str(BASE_DIR))
 
 from app.core.config import settings
 from app.db.base import Base
