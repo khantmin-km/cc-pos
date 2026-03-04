@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# Node (future frontend)
+node_modules/
+dist/
+
+# macOS
+.DS_Store
+
+# Codex Setup
+AGENTS.md
+CONTEXT.md
+openspec/
