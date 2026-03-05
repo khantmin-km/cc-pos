@@ -59,11 +59,18 @@ Attach FREE PhysicalTable to OPEN TableGroup.
 ### POST /table-groups/{tableGroupId}/tables/remove
 Detach PhysicalTable from OPEN TableGroup.
 
+### POST /table-groups/{tableGroupId}/switch
+Switch a TableGroup from one PhysicalTable to another FREE PhysicalTable.
+
+**Request (conceptual):**
+- from_table_id
+- to_table_id
+
 ### POST /table-groups/merge
 Merge two OPEN TableGroups into a target group.
 
 ### POST /table-groups/{tableGroupId}/split
-Split an OPEN TableGroup when eligible.
+Split an OPEN TableGroup only when it has zero OrderItems.
 
 ## Orders
 ### POST /tables/{physicalTableId}/orders/confirm
@@ -109,6 +116,10 @@ Reprint an OrderItem (admin only).
 ## Billing
 ### GET /table-groups/{tableGroupId}/bill
 Compute the current bill.
+
+**Notes:**
+- Billing is always computed at TableGroup level.
+- No individual or per-table bill split operation is supported.
 
 ### POST /table-groups/{tableGroupId}/print-bill
 Generate printable bill output.
