@@ -7,7 +7,7 @@ __pycache__/
 
 # Node (future frontend)
 node_modules/
-
+dist/
 
 # macOS
 .DS_Store
@@ -15,4 +15,5 @@ node_modules/
 # Codex Setup
 AGENTS.md
 CONTEXT.md
+.eslintcache
 openspec/
