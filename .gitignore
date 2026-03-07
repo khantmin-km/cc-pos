@@ -15,5 +15,11 @@ dist/
 # Codex Setup
 AGENTS.md
 CONTEXT.md
-.eslintcache
 openspec/
+
+# frontend noise
+frontend/.tmp/
+frontend/.vite/
+frontend/.vscode/
+frontend/*.tsbuildinfo
+.eslintcache
