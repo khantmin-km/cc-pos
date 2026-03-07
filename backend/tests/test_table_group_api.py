@@ -36,7 +36,7 @@ def seed_table(db: Session, table_code: str) -> PhysicalTable:
 
 
 def seed_order_item(db: Session, table_group_id, physical_table_id) -> OrderItem:
-    order = Order(table_group_id=table_group_id, state="CONFIRMED")
+    order = Order(table_group_id=table_group_id, idempotency_key=str(uuid4()), state="CONFIRMED")
     db.add(order)
     db.flush()
     item = OrderItem(
