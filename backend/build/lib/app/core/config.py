@@ -1,13 +1,6 @@
 # backend/app/core/config.py
-from pathlib import Path
-
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-BASE_DIR = Path(__file__).resolve().parents[2]
-DEFAULT_SQLITE_PATH = BASE_DIR / "cc_pos.db"
-DEFAULT_DATABASE_URL = f"sqlite:///{DEFAULT_SQLITE_PATH.as_posix()}"
 
 
 class Settings(BaseSettings):
@@ -19,9 +12,9 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def validate_database_url(cls, value: str | None) -> str:
-        if value:
-            return value
-        return DEFAULT_DATABASE_URL
+        if not value:
+            raise ValueError("DATABASE_URL is required. Set it in .env or the environment.")
+        return value
 
 
 settings = Settings()

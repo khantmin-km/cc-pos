@@ -14,13 +14,13 @@ import type {
   TableGroup,
   TableGroupUI,
   BillingStatus,
-} from '@/types/pos'
+} from '../types/pos'
 
 // Store imports
 import { useTablesStore } from './tables'
 
 // API imports
-import { tableGroupsApi } from '@/services/tablesApi'
+import { tableGroupsApi } from '../services/tablesApi'
 
 // ==========================================
 // Helper Functions
@@ -44,7 +44,10 @@ function mapBackendToUI(
   }
 
   // Get status or default to active
-  const status = billingStatusMap[backendGroup.state]
+  const normalizedState = backendGroup.state
+    ? backendGroup.state.toLowerCase()
+    : 'open'
+  const status = billingStatusMap[normalizedState]
     || 'active'
 
   // Generate display name from ID suffix
