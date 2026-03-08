@@ -95,12 +95,17 @@ function handleTableClick(table: Table) {
   <div class="table-selection">
     <!-- Header -->
     <div class="header">
-      <h1 class="title">
-        KAUNG KAUNG
-      </h1>
-      <span class="subtitle">
-        WAITER UI
-      </span>
+      <div class="title-block">
+        <h1 class="title">
+          KAUNG KAUNG
+        </h1>
+        <span class="subtitle">
+          WAITER UI
+        </span>
+      </div>
+      <RouterLink to="/admin" class="admin-link">
+        Admin Access
+      </RouterLink>
     </div>
 
     <!-- Banner -->
@@ -142,9 +147,16 @@ function handleTableClick(table: Table) {
 
 .header {
   display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.title-block {
+  display: flex;
   align-items: baseline;
   gap: 0.5rem;
-  margin-bottom: 0.5rem;
 }
 
 .title {
@@ -156,6 +168,17 @@ function handleTableClick(table: Table) {
 .subtitle {
   font-size: 0.9rem;
   color: var(--pos-text-muted);
+}
+
+.admin-link {
+  font-size: 0.85rem;
+  color: var(--pos-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.admin-link:hover {
+  text-decoration: underline;
 }
 
 .banner {

@@ -15,10 +15,10 @@ import type {
   Table,
   TableStatus,
   TableArea,
-} from '@/types/pos'
+} from '../types/pos'
 
 // API imports
-import { tablesApi } from '@/services/tablesApi'
+import { tablesApi } from '../services/tablesApi'
 
 // ==========================================
 // Helper Functions

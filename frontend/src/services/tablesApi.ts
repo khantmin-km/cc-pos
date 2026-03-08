@@ -12,7 +12,7 @@ import { api } from './api'
 import type {
   PhysicalTable,
   TableGroup,
-} from '@/types/pos'
+} from '../types/pos'
 
 // ==========================================
 // Physical Tables API

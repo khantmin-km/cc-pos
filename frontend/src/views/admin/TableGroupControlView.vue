@@ -14,19 +14,20 @@ import {
 } from 'vue'
 
 // Store imports
-import { useTablesStore } from '@/stores/tables'
-import { useTableGroupsStore } from '@/stores/tableGroups'
+import { useTablesStore } from '../../stores/tables'
+import { useTableGroupsStore } from '../../stores/tableGroups'
 
 // Type imports
 import type {
   Table,
   TableGroupUI,
-} from '@/types/pos'
+} from '../../types/pos'
 
 // Component imports
-import AdminCard from '@/components/admin/AdminCard.vue'
-import StatusBadge from '@/components/admin/StatusBadge.vue'
-import ConfirmModal from '@/components/admin/ConfirmModal.vue'
+import AdminCard from '../../components/admin/AdminCard.vue'
+import StatusBadge from '../../components/admin/StatusBadge.vue'
+import ConfirmModal from '../../components/admin/ConfirmModal.vue'
+import AdminNavTabs from '../../components/admin/AdminNavTabs.vue'
 
 // --------------------------------
 // Setup
@@ -312,6 +313,8 @@ function openDissolveModalForGroup(group: TableGroupUI) {
         </h2>
       </div>
 
+      <AdminNavTabs class="admin-nav-section" />
+
       <!-- Main Grid -->
       <div class="admin-grid">
         <!-- Ungrouped Tables -->
@@ -539,6 +542,10 @@ function openDissolveModalForGroup(group: TableGroupUI) {
   max-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
+}
+
+.admin-nav-section {
+  margin-bottom: 1.5rem;
 }
 
 .admin-header {
