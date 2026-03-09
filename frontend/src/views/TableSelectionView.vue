@@ -19,6 +19,7 @@ import { useRouter } from 'vue-router'
 // Store imports
 import { useTablesStore } from '@/stores/tables'
 import { useTableGroupsStore } from '@/stores/tableGroups'
+import { getRuntimeMode, onRuntimeModeChange, setRuntimeMode } from '@/services/runtimeMode'
 
 // Type imports
 import type { Table } from '@/types/pos'
@@ -38,6 +39,15 @@ const router = useRouter()
 // Initialize stores
 const tablesStore = useTablesStore()
 const tableGroupsStore = useTableGroupsStore()
+const mode = ref(getRuntimeMode())
+
+onRuntimeModeChange(async (m) => {
+  mode.value = m
+  await Promise.allSettled([
+    tablesStore.fetchTables(),
+    tableGroupsStore.fetchOpenGroups(),
+  ])
+})
 
 // --------------------------------
 // State
@@ -101,6 +111,14 @@ function handleTableClick(table: Table) {
       <span class="subtitle">
         WAITER UI
       </span>
+      <button
+        type="button"
+        class="mode"
+        :data-mode="mode"
+        @click="setRuntimeMode(mode === 'demo' ? 'live' : 'demo')"
+      >
+        Mode: {{ mode }}
+      </button>
     </div>
 
     <!-- Banner -->
@@ -115,7 +133,33 @@ function handleTableClick(table: Table) {
     />
 
     <!-- Table Grid -->
-    <div class="table-grid">
+    <div v-if="tablesStore.loading" class="state">
+      Loading tables…
+    </div>
+
+    <div v-else-if="tablesStore.error" class="state error">
+      <div class="err-title">Couldn’t load tables</div>
+      <div class="err-msg">{{ tablesStore.error }}</div>
+      <button
+        type="button"
+        class="retry"
+        @click="tablesStore.fetchTables()"
+      >
+        Retry
+      </button>
+      <p class="hint">
+        If the backend is failing, switch to <b>demo</b> mode.
+      </p>
+    </div>
+
+    <div v-else-if="tablesStore.tablesByArea.length === 0" class="state">
+      No tables found.
+      <div class="hint">
+        Switch to <b>demo</b> mode to see UI working with sample data.
+      </div>
+    </div>
+
+    <div v-else class="table-grid">
       <TableCard
         v-for="table in tablesStore.tablesByArea"
         :key="table.id"
@@ -158,6 +202,22 @@ function handleTableClick(table: Table) {
   color: var(--pos-text-muted);
 }
 
+.mode {
+  margin-left: auto;
+  border: 1px solid var(--pos-border);
+  background: white;
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mode[data-mode='demo'] {
+  border-color: #f59e0b;
+  color: #92400e;
+  background: #fffbeb;
+}
+
 .banner {
   background: var(--pos-primary);
   color: white;
@@ -172,5 +232,48 @@ function handleTableClick(table: Table) {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
+}
+
+.state {
+  margin-top: 1rem;
+  background: white;
+  border: 1px solid var(--pos-border);
+  border-radius: 12px;
+  padding: 1rem;
+  font-weight: 700;
+  color: var(--pos-text);
+}
+
+.state.error {
+  border-color: #fecaca;
+  background: #fff1f2;
+}
+
+.err-title {
+  font-weight: 900;
+}
+
+.err-msg {
+  margin-top: 0.5rem;
+  font-weight: 600;
+  color: #7f1d1d;
+  white-space: pre-wrap;
+}
+
+.retry {
+  margin-top: 0.75rem;
+  border: none;
+  background: var(--pos-primary);
+  color: white;
+  padding: 0.5rem 0.9rem;
+  border-radius: 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.hint {
+  margin-top: 0.6rem;
+  color: var(--pos-text-muted);
+  font-weight: 600;
 }
 </style>

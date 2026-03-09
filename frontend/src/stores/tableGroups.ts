@@ -76,6 +76,9 @@ export const useTableGroupsStore = defineStore(
     /** Raw group data from backend */
     const backendGroups = ref<TableGroup[]>([])
 
+    /** Local-only UI overrides keyed by group id */
+    const waiterOverrideByGroupId = ref<Record<string, boolean>>({})
+
     /** Access to tables store */
     const tablesStore = useTablesStore()
 
@@ -91,7 +94,12 @@ export const useTableGroupsStore = defineStore(
 
     /** Groups formatted for UI */
     const tableGroups = computed<TableGroupUI[]>(() => {
-      return backendGroups.value.map(mapBackendToUI)
+      return backendGroups.value.map((g) => {
+        const ui = mapBackendToUI(g)
+        const override = waiterOverrideByGroupId.value[ui.id]
+        if (override !== undefined) ui.waiterWorkflowOverride = override
+        return ui
+      })
     })
 
     /** All tables from tables store */
@@ -432,9 +440,9 @@ export const useTableGroupsStore = defineStore(
       groupId: string,
       override: boolean
     ) => {
-      const group = getTableGroupById(groupId)
-      if (group) {
-        group.waiterWorkflowOverride = override
+      waiterOverrideByGroupId.value = {
+        ...waiterOverrideByGroupId.value,
+        [groupId]: override,
       }
     }
 
@@ -459,6 +467,7 @@ export const useTableGroupsStore = defineStore(
       backendGroups,
       loading,
       error,
+      waiterOverrideByGroupId,
 
       // Getters
       ungroupedTables,

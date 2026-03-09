@@ -5,8 +5,9 @@
  * All methods return promises that resolve to typed data.
  */
 
-// Import base API client
-import { api } from './api'
+import { api, ApiError } from './api'
+import { demoTableGroupsApi, demoTablesApi } from './demoBackend'
+import { getRuntimeMode, setRuntimeMode } from './runtimeMode'
 
 // Import type definitions
 import type {
@@ -30,7 +31,11 @@ export const tablesApi = {
    * @returns Array of PhysicalTable objects
    */
   list: (): Promise<PhysicalTable[]> => {
-    return api.get<PhysicalTable[]>('/tables')
+    if (getRuntimeMode() === 'demo') return demoTablesApi.list()
+    return api.get<PhysicalTable[]>('/tables').catch((e) => {
+      if (e instanceof ApiError) setRuntimeMode('demo')
+      return demoTablesApi.list()
+    })
   },
 
   /**
@@ -45,9 +50,13 @@ export const tablesApi = {
   startService: (
     id: string
   ): Promise<TableGroup> => {
-    return api.post<TableGroup>(
-      `/tables/${id}/start-service`
-    )
+    if (getRuntimeMode() === 'demo') return demoTablesApi.startService(id)
+    return api
+      .post<TableGroup>(`/tables/${id}/start-service`)
+      .catch((e) => {
+        if (e instanceof ApiError) setRuntimeMode('demo')
+        return demoTablesApi.startService(id)
+      })
   },
 }
 
@@ -67,7 +76,11 @@ export const tableGroupsApi = {
    * @returns Array of TableGroup objects
    */
   listOpen: (): Promise<TableGroup[]> => {
-    return api.get<TableGroup[]>('/table-groups/open')
+    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.listOpen()
+    return api.get<TableGroup[]>('/table-groups/open').catch((e) => {
+      if (e instanceof ApiError) setRuntimeMode('demo')
+      return demoTableGroupsApi.listOpen()
+    })
   },
 
   /**
@@ -79,7 +92,11 @@ export const tableGroupsApi = {
    * @returns TableGroup object
    */
   get: (id: string): Promise<TableGroup> => {
-    return api.get<TableGroup>(`/table-groups/${id}`)
+    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.get(id)
+    return api.get<TableGroup>(`/table-groups/${id}`).catch((e) => {
+      if (e instanceof ApiError) setRuntimeMode('demo')
+      return demoTableGroupsApi.get(id)
+    })
   },
 
   /**
@@ -91,9 +108,11 @@ export const tableGroupsApi = {
    * @param id - Table group ID
    */
   requestBill: (id: string): Promise<void> => {
-    return api.post<void>(
-      `/table-groups/${id}/request-bill`
-    )
+    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.requestBill(id)
+    return api.post<void>(`/table-groups/${id}/request-bill`).catch((e) => {
+      if (e instanceof ApiError) setRuntimeMode('demo')
+      return demoTableGroupsApi.requestBill(id)
+    })
   },
 
   /**
@@ -105,9 +124,11 @@ export const tableGroupsApi = {
    * @param id - Table group ID
    */
   markPaid: (id: string): Promise<void> => {
-    return api.post<void>(
-      `/table-groups/${id}/mark-paid`
-    )
+    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.markPaid(id)
+    return api.post<void>(`/table-groups/${id}/mark-paid`).catch((e) => {
+      if (e instanceof ApiError) setRuntimeMode('demo')
+      return demoTableGroupsApi.markPaid(id)
+    })
   },
 
   /**
@@ -119,7 +140,11 @@ export const tableGroupsApi = {
    * @param id - Table group ID
    */
   close: (id: string): Promise<void> => {
-    return api.post<void>(`/table-groups/${id}/close`)
+    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.close(id)
+    return api.post<void>(`/table-groups/${id}/close`).catch((e) => {
+      if (e instanceof ApiError) setRuntimeMode('demo')
+      return demoTableGroupsApi.close(id)
+    })
   },
 
   /**
@@ -134,12 +159,15 @@ export const tableGroupsApi = {
     groupId: string,
     physicalTableId: string
   ): Promise<void> => {
-    return api.post<void>(
-      `/table-groups/${groupId}/tables/add`,
-      {
+    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.addTable(groupId, physicalTableId)
+    return api
+      .post<void>(`/table-groups/${groupId}/tables/add`, {
         physical_table_id: physicalTableId,
-      }
-    )
+      })
+      .catch((e) => {
+        if (e instanceof ApiError) setRuntimeMode('demo')
+        return demoTableGroupsApi.addTable(groupId, physicalTableId)
+      })
   },
 
   /**
@@ -154,12 +182,15 @@ export const tableGroupsApi = {
     groupId: string,
     physicalTableId: string
   ): Promise<void> => {
-    return api.post<void>(
-      `/table-groups/${groupId}/tables/remove`,
-      {
+    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.removeTable(groupId, physicalTableId)
+    return api
+      .post<void>(`/table-groups/${groupId}/tables/remove`, {
         physical_table_id: physicalTableId,
-      }
-    )
+      })
+      .catch((e) => {
+        if (e instanceof ApiError) setRuntimeMode('demo')
+        return demoTableGroupsApi.removeTable(groupId, physicalTableId)
+      })
   },
 
   /**
@@ -176,13 +207,18 @@ export const tableGroupsApi = {
     fromTableId: string,
     toTableId: string
   ): Promise<void> => {
-    return api.post<void>(
-      `/table-groups/${groupId}/switch`,
-      {
+    if (getRuntimeMode() === 'demo') {
+      return demoTableGroupsApi.switchTable(groupId, fromTableId, toTableId)
+    }
+    return api
+      .post<void>(`/table-groups/${groupId}/switch`, {
         from_table_id: fromTableId,
         to_table_id: toTableId,
-      }
-    )
+      })
+      .catch((e) => {
+        if (e instanceof ApiError) setRuntimeMode('demo')
+        return demoTableGroupsApi.switchTable(groupId, fromTableId, toTableId)
+      })
   },
 
   /**
@@ -198,10 +234,16 @@ export const tableGroupsApi = {
     sourceId: string,
     targetId: string
   ): Promise<void> => {
-    return api.post<void>('/table-groups/merge', {
-      source_group_id: sourceId,
-      target_group_id: targetId,
-    })
+    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.merge(sourceId, targetId)
+    return api
+      .post<void>('/table-groups/merge', {
+        source_group_id: sourceId,
+        target_group_id: targetId,
+      })
+      .catch((e) => {
+        if (e instanceof ApiError) setRuntimeMode('demo')
+        return demoTableGroupsApi.merge(sourceId, targetId)
+      })
   },
 
   /**
@@ -218,11 +260,14 @@ export const tableGroupsApi = {
     id: string,
     physicalTableIds: string[]
   ): Promise<TableGroup> => {
-    return api.post<TableGroup>(
-      `/table-groups/${id}/split`,
-      {
+    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.split(id, physicalTableIds)
+    return api
+      .post<TableGroup>(`/table-groups/${id}/split`, {
         physical_table_ids: physicalTableIds,
-      }
-    )
+      })
+      .catch((e) => {
+        if (e instanceof ApiError) setRuntimeMode('demo')
+        return demoTableGroupsApi.split(id, physicalTableIds)
+      })
   },
 }
