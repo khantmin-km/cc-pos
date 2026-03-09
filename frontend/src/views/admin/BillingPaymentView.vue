@@ -15,21 +15,20 @@ import {
 } from 'vue'
 
 // Store imports
-import { useTableGroupsStore } from '../../stores/tableGroups'
-import { useOrdersStore } from '../../stores/orders'
-import { useTablesStore } from '../../stores/tables'
+import { useTableGroupsStore } from '@/stores/tableGroups'
+import { useOrdersStore } from '@/stores/orders'
+import { useTablesStore } from '@/stores/tables'
 
 // Type imports
 import type {
   TableGroupUI,
   BillingStatus,
-} from '../../types/pos'
+} from '@/types/pos'
 
 // Component imports
-import AdminCard from '../../components/admin/AdminCard.vue'
-import StatusBadge from '../../components/admin/StatusBadge.vue'
-import ConfirmModal from '../../components/admin/ConfirmModal.vue'
-import AdminNavTabs from '../../components/admin/AdminNavTabs.vue'
+import AdminCard from '@/components/admin/AdminCard.vue'
+import StatusBadge from '@/components/admin/StatusBadge.vue'
+import ConfirmModal from '@/components/admin/ConfirmModal.vue'
 
 // --------------------------------
 // Setup
@@ -247,8 +246,6 @@ function openCloseModalForGroup(group: TableGroupUI) {
         </h2>
       </div>
 
-      <AdminNavTabs class="admin-nav-section" />
-
       <!-- Billing Grid -->
       <div class="billing-grid">
         <AdminCard
@@ -389,10 +386,6 @@ function openCloseModalForGroup(group: TableGroupUI) {
   max-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
-}
-
-.admin-nav-section {
-  margin-bottom: 1.5rem;
 }
 
 .admin-header {
