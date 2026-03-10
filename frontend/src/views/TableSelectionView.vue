@@ -192,27 +192,30 @@ function handleTableClick(table: Table) {
 
 <style scoped>
 .table-selection {
-  max-width: 600px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 1.5rem 1rem 2.5rem;
 }
 
 .header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--pos-primary);
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #22c55e;
+  letter-spacing: 0.05em;
 }
 
 .subtitle {
   font-size: 0.9rem;
-  color: var(--pos-text-muted);
+  color: #9ca3af;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
 <<<<<<< HEAD
@@ -224,6 +227,7 @@ function handleTableClick(table: Table) {
   padding: 0.4rem 0.75rem;
   font-weight: 800;
   cursor: pointer;
+  font-size: 0.75rem;
 }
 
 .mode[data-mode='demo'] {
@@ -235,13 +239,14 @@ function handleTableClick(table: Table) {
 =======
 >>>>>>> df712ff (frontend_backend)
 .banner {
-  background: var(--pos-primary);
+  background: #22c55e;
   color: white;
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 1rem;
-  margin-bottom: 1rem;
+  padding: 0.75rem 1.1rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  margin-bottom: 1.1rem;
 }
 
 .table-grid {

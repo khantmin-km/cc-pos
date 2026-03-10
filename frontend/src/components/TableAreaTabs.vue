@@ -10,8 +10,8 @@ const emit = defineEmits<{
 }>()
 
 const areas: { key: TableArea; label: string }[] = [
-  { key: 'indoor', label: 'Indoor' },
-  { key: 'outdoor', label: 'Outdoor' },
+  { key: 'indoor', label: 'IN-door' },
+  { key: 'outdoor', label: 'Out-door' },
   { key: 'garden', label: 'Garden' },
 ]
 </script>
@@ -35,23 +35,24 @@ const areas: { key: TableArea; label: string }[] = [
 .tabs {
   display: flex;
   gap: 0.5rem;
-  margin: 0 0 1rem;
+  margin: 0 0 1.2rem;
 }
 
 .tab {
-  border: 1px solid var(--pos-border);
+  border: 1px solid #22c55e;
   background: white;
-  color: var(--pos-text);
-  padding: 0.5rem 0.75rem;
+  color: #16a34a;
+  padding: 0.45rem 0.95rem;
   border-radius: 999px;
   font-weight: 700;
+  font-size: 0.8rem;
   cursor: pointer;
 }
 
 .tab[data-active='true'] {
-  background: var(--pos-primary);
-  border-color: var(--pos-primary);
-  color: white;
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #ffffff;
 }
 </style>
 

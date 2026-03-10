@@ -1,10 +1,10 @@
 :root {
-  --pos-primary: #1d4ed8;
-  --pos-background: #f8fafc;
-  --pos-card-bg: #f1f5f9;
+  --pos-primary: #22c55e;
+  --pos-background: #f9fafb;
+  --pos-card-bg: #f5f5f5;
   --pos-border: #e5e7eb;
-  --pos-text: #0f172a;
-  --pos-text-muted: #64748b;
+  --pos-text: #111827;
+  --pos-text-muted: #6b7280;
 }
 
 * {
