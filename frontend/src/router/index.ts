@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import TableSelectionView from '@/views/TableSelectionView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
+import MenuView from '@/views/MenuView.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
 import AdminDashboardView from '@/views/admin/AdminDashboardView.vue'
 import TableGroupControlView from '@/views/admin/TableGroupControlView.vue'
@@ -12,7 +13,7 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', name: 'waiter', component: TableSelectionView },
-    { path: '/menu/:tableId', name: 'menu', component: PlaceholderView },
+    { path: '/menu/:tableId', name: 'menu', component: MenuView },
     { path: '/orders/:tableId', name: 'orders', component: PlaceholderView },
     {
       path: '/admin',
