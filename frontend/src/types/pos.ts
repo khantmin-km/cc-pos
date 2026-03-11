@@ -170,6 +170,18 @@ export interface MenuItem {
   isDailySpecial?: boolean
 }
 
+/**
+ * Backend MenuItem - From backend API
+ * Matches `GET /menu-items`
+ */
+export interface BackendMenuItem {
+  id: string
+  name: string
+  price: string | number
+  status: 'AVAILABLE' | 'UNAVAILABLE' | 'RETIRED'
+  created_at: string
+}
+
 // ==========================================
 // Order Types
 // ==========================================
