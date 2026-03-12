@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 .env
 .env.*
+.pytest_cache/
 
 # Node (future frontend)
 node_modules/
@@ -16,3 +17,11 @@ dist/
 AGENTS.md
 CONTEXT.md
 openspec/
+
+# frontend noise
+frontend/.tmp/
+frontend/.vite/
+frontend/.vscode/
+frontend/*.tsbuildinfo
+.eslintcache
+*.db

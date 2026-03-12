@@ -102,6 +102,7 @@ def confirm_order(
                         menu_item_id=line.menu_item_id,
                         menu_item_name_snap=name_snap,
                         unit_price_snap=price_snap,
+                        note_snap=line.note,
                         status=ACTIVE,
                     )
                     created_item_ids.append(created_item.id)

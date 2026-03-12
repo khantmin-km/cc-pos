@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class OrderConfirmItemRequest(BaseModel):
     menu_item_id: UUID
     quantity: int = Field(ge=1)
+    note: str | None = Field(default=None, max_length=200)
 
 
 class OrderConfirmRequest(BaseModel):

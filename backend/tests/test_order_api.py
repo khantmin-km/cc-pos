@@ -58,13 +58,14 @@ def test_confirm_order_api_success(client: TestClient, db_session: Session) -> N
     client.post(f"/tables/{table.id}/start-service")
     item_a = seed_menu_item(db_session, "Noodle", "11.00")
     item_b = seed_menu_item(db_session, "Tea", "2.50")
+    note = "No onions"
 
     response = client.post(
         f"/tables/{table.id}/orders/confirm",
         json={
             "idempotency_key": "api-order-1",
             "items": [
-                {"menu_item_id": str(item_a.id), "quantity": 2},
+                {"menu_item_id": str(item_a.id), "quantity": 2, "note": note},
                 {"menu_item_id": str(item_b.id), "quantity": 1},
             ],
         },
@@ -74,6 +75,14 @@ def test_confirm_order_api_success(client: TestClient, db_session: Session) -> N
     payload = response.json()
     assert_confirm_response(payload)
     assert len(payload["order_item_ids"]) == 3
+
+    order_id = UUID(payload["order_id"])
+    note_count = db_session.scalar(
+        select(func.count(OrderItem.id))
+        .where(OrderItem.order_id == order_id)
+        .where(OrderItem.note_snap == note)
+    )
+    assert int(note_count or 0) == 2
 
 
 def test_confirm_order_api_rejects_free_table(client: TestClient, db_session: Session) -> None:
@@ -171,6 +180,7 @@ def test_confirm_order_api_idempotency_returns_same_order(client: TestClient, db
 
 def test_confirm_order_api_validation_errors(client: TestClient, db_session: Session) -> None:
     table = seed_table(db_session, "OA1")
+    long_note = "x" * 201
 
     missing_key = client.post(
         f"/tables/{table.id}/orders/confirm",
@@ -187,7 +197,15 @@ def test_confirm_order_api_validation_errors(client: TestClient, db_session: Ses
             "items": [{"menu_item_id": str(uuid4()), "quantity": 0}],
         },
     )
+    invalid_note = client.post(
+        f"/tables/{table.id}/orders/confirm",
+        json={
+            "idempotency_key": "api-order-8",
+            "items": [{"menu_item_id": str(uuid4()), "quantity": 1, "note": long_note}],
+        },
+    )
 
     assert missing_key.status_code == 422
     assert empty_items.status_code == 422
     assert invalid_quantity.status_code == 422
+    assert invalid_note.status_code == 422
