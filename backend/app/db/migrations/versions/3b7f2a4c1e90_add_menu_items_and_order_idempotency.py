@@ -34,7 +34,7 @@ def upgrade() -> None:
     )
 
     op.add_column("orders", sa.Column("idempotency_key", sa.String(length=100), nullable=True))
-    op.execute("UPDATE orders SET idempotency_key = id::text WHERE idempotency_key IS NULL")
+    op.execute("UPDATE orders SET idempotency_key = CAST(id AS TEXT) WHERE idempotency_key IS NULL")
     op.alter_column("orders", "idempotency_key", nullable=False)
     op.create_unique_constraint("uq_orders_idempotency_key", "orders", ["idempotency_key"])
 
