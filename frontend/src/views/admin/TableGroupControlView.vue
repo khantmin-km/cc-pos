@@ -61,7 +61,10 @@ const newGroupName = ref('')
 /** Currently dragged table for DnD */
 const draggedTable = ref<Table | null>(null)
 
-/** Selected table IDs for split operation */
+/** Selected table IDs for creating new group */
+const selectedTablesForCreate = ref<string[]>([])
+
+/** Selected table IDs for splitting group */
 const splitTableIds = ref<string[]>([])
 
 // --------------------------------
@@ -126,20 +129,55 @@ function getTablesForGroup(groupId: string) {
  */
 async function handleCreateGroup() {
   const hasName = newGroupName.value.trim()
-  const hasTables = ungroupedTables.value.length > 0
+  const hasTables = selectedTablesForCreate.value.length > 0
 
   if (hasName && hasTables) {
-    // Get first ungrouped table
-    const tableId = ungroupedTables.value[0]?.id
+    // Get first selected table
+    const firstTableId = selectedTablesForCreate.value[0]
 
-    if (tableId) {
+    if (firstTableId) {
       // Create group by starting service
-      await tablesStore.startService(tableId)
+      await tablesStore.startService(firstTableId)
+      
+      // Add remaining tables to the group if more than one selected
+      if (selectedTablesForCreate.value.length > 1) {
+        const groupId = tablesStore.tables.find(
+          (t) => t.id === firstTableId
+        )?.tableGroupId
+        
+        if (groupId) {
+          for (let i = 1; i < selectedTablesForCreate.value.length; i++) {
+            await tableGroupsStore.addTableToGroup(
+              groupId,
+              selectedTablesForCreate.value[i]
+            )
+          }
+        }
+      }
     }
 
     // Reset form
     newGroupName.value = ''
+    selectedTablesForCreate.value = []
     showCreateModal.value = false
+    
+    // Refresh data
+    await Promise.all([
+      tablesStore.fetchTables(),
+      tableGroupsStore.fetchOpenGroups(),
+    ])
+  }
+}
+
+/**
+ * Toggle table selection for create group
+ */
+function toggleCreateTableSelection(tableId: string) {
+  const index = selectedTablesForCreate.value.indexOf(tableId)
+  if (index > -1) {
+    selectedTablesForCreate.value.splice(index, 1)
+  } else {
+    selectedTablesForCreate.value.push(tableId)
   }
 }
 
@@ -153,7 +191,7 @@ async function handleSplitGroup() {
 
   if (hasGroup && hasName && hasTables) {
     await tableGroupsStore.splitTableGroup(
-      selectedGroup.value.id,
+      hasGroup.id,
       splitTableIds.value
     )
 
@@ -433,13 +471,31 @@ function openDissolveModalForGroup(group: TableGroupUI) {
           Create Table Group
         </h3>
         <p class="modal-message">
-          Create group with {{ ungroupedTables.length }} table(s)?
+          Select tables to group together:
         </p>
+        
+        <div class="table-selection-create">
+          <button
+            v-for="table in ungroupedTables"
+            :key="table.id"
+            type="button"
+            class="table-selector"
+            :data-selected="selectedTablesForCreate.includes(table.id)"
+            @click="toggleCreateTableSelection(table.id)"
+          >
+            Table {{ table.number }}
+          </button>
+        </div>
+
+        <p v-if="selectedTablesForCreate.length === 0" class="no-selection">
+          Select at least one table
+        </p>
+
         <div class="modal-form">
           <input
             v-model="newGroupName"
             type="text"
-            placeholder="Group name"
+            placeholder="Group name (optional)"
             class="input-field"
           />
         </div>
@@ -454,7 +510,7 @@ function openDissolveModalForGroup(group: TableGroupUI) {
           <button
             type="button"
             class="btn btn-confirm"
-            :disabled="!newGroupName.trim()"
+            :disabled="selectedTablesForCreate.length === 0"
             @click="handleCreateGroup"
           >
             Create
@@ -726,6 +782,49 @@ function openDissolveModalForGroup(group: TableGroupUI) {
 .btn-confirm {
   background: var(--pos-primary);
   color: white;
+}
+
+.table-selection-create {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  max-height: 250px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  border: 1px solid var(--pos-border);
+  border-radius: 6px;
+}
+
+.table-selector {
+  padding: 0.6rem;
+  border: 2px solid var(--pos-border);
+  background: white;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--pos-text);
+  font-size: 0.9rem;
+}
+
+.table-selector:hover {
+  border-color: var(--pos-primary);
+  background: #f0f9ff;
+}
+
+.table-selector[data-selected='true'] {
+  background: var(--pos-primary);
+  color: white;
+  border-color: var(--pos-primary);
+}
+
+.no-selection {
+  color: #9ca3af;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-align: center;
+  margin-bottom: 0.5rem;
 }
 
 @media (max-width: 768px) {

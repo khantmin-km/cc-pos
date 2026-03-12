@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { useMenuStore } from '@/stores/menu'
 import { useCartStore } from '@/stores/cart'
+import { ordersApi } from '@/services/ordersApi'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,10 +20,50 @@ const menuStore = useMenuStore()
 const cartStore = useCartStore()
 
 const showCart = ref(false)
+const isConfirming = ref(false)
+const confirmError = ref<string | null>(null)
 
 onMounted(async () => {
   await menuStore.fetchMenuItems()
 })
+
+/**
+ * Handle order confirmation
+ */
+async function handleConfirmOrder() {
+  if (cartStore.lines.length === 0) {
+    confirmError.value = 'Please add items to your order'
+    return
+  }
+
+  isConfirming.value = true
+  confirmError.value = null
+
+  try {
+    const items = cartStore.lines.map((line) => {
+      const menuItem = menuStore.getItemById(line.menuItemId)
+      return {
+        menu_item_id: line.menuItemId,
+        menu_item_name_snap: menuItem?.name ?? 'Unknown',
+        unit_price_snap: menuItem?.price ?? 0,
+        quantity: line.qty,
+      }
+    })
+
+    await ordersApi.confirm(tableId.value, {
+      idempotency_key: `order-${Date.now()}-${Math.random()}`,
+      items,
+    })
+
+    // Clear cart and close modal on success
+    cartStore.clear()
+    showCart.value = false
+  } catch (e) {
+    confirmError.value = e instanceof Error ? e.message : 'Failed to confirm order'
+  } finally {
+    isConfirming.value = false
+  }
+}
 
 const categories = [
   { id: 'all', label: 'All' },
@@ -91,6 +132,19 @@ function priceClass(v: number) {
         Retry
       </button>
     </div>
+    <div v-else-if="menuStore.filteredItems.length === 0" class="state">
+      <div class="t">No menu items</div>
+      <div class="m">Menu is not available right now</div>
+    </div>
+    <div v-else-if="menuStore.items.length === 0" class="state empty">
+      <div class="t">No menu items</div>
+      <div class="m">None</div>
+    </div>
+
+    <div v-else-if="menuStore.filteredItems.length === 0" class="state empty">
+      <div class="t">No items in this category</div>
+      <div class="m">None</div>
+    </div>
 
     <div v-else class="list">
       <div
@@ -151,10 +205,19 @@ function priceClass(v: number) {
           </div>
         </div>
 
+        <div v-if="confirmError" class="error-message">
+          {{ confirmError }}
+        </div>
+
         <div class="panel-actions">
-          <button type="button" class="clear" @click="cartStore.clear()">Clear</button>
-          <button type="button" class="confirm" @click="showCart = false">
-            Confirm
+          <button type="button" class="clear" @click="cartStore.clear()" :disabled="isConfirming">Clear</button>
+          <button
+            type="button"
+            class="confirm"
+            :disabled="isConfirming || cartStore.lines.length === 0"
+            @click="handleConfirmOrder"
+          >
+            {{ isConfirming ? 'Confirming...' : 'Confirm' }}
           </button>
         </div>
       </div>
@@ -349,6 +412,22 @@ function priceClass(v: number) {
   font-weight: 800;
 }
 
+.error-message {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.state.empty {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  text-align: center;
+}
+
 .state.error {
   border-color: #fecaca;
   background: #fff1f2;
@@ -488,6 +567,11 @@ function priceClass(v: number) {
   cursor: pointer;
 }
 
+.clear:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .confirm {
   border: none;
   background: #111827;
@@ -496,6 +580,11 @@ function priceClass(v: number) {
   padding: 10px 12px;
   font-weight: 900;
   cursor: pointer;
+}
+
+.confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>
 

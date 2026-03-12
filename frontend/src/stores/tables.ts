@@ -14,7 +14,6 @@ import type {
   PhysicalTable,
   Table,
   TableStatus,
-  TableArea,
 } from '@/types/pos'
 
 // API imports
@@ -50,7 +49,6 @@ function mapPhysicalTableToTable(
     id: pt.id,
     number,
     status,
-    area: 'indoor' as TableArea,
     tableGroupId: pt.current_table_group_id || undefined,
   }
 }
@@ -72,9 +70,6 @@ export const useTablesStore = defineStore(
     /** Raw table data from backend */
     const physicalTables = ref<PhysicalTable[]>([])
 
-    /** Currently selected area filter */
-    const currentArea = ref<TableArea>('indoor')
-
     /** Loading state for async operations */
     const loading = ref(false)
 
@@ -92,13 +87,6 @@ export const useTablesStore = defineStore(
       )
     })
 
-    /** Tables filtered by current area */
-    const tablesByArea = computed(() => {
-      return tables.value.filter((t) => {
-        return t.area === currentArea.value
-      })
-    })
-
     // --------------------------------
     // Helper Functions
     // --------------------------------
@@ -109,14 +97,6 @@ export const useTablesStore = defineStore(
      */
     const getTableById = (id: string) => {
       return tables.value.find((t) => t.id === id)
-    }
-
-    /**
-     * Change the current area filter
-     * @param area - New area to filter by
-     */
-    const setCurrentArea = (area: TableArea) => {
-      currentArea.value = area
     }
 
     // --------------------------------
@@ -193,16 +173,13 @@ export const useTablesStore = defineStore(
       // State
       physicalTables,
       tables,
-      currentArea,
       loading,
       error,
 
-      // Getters
-      tablesByArea,
+      // Methods
       getTableById,
 
       // Actions
-      setCurrentArea,
       fetchTables,
       startService,
     }

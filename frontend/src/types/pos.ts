@@ -104,8 +104,8 @@ export interface Table {
   /** Current status */
   status: TableStatus
 
-  /** Physical area location */
-  area: TableArea
+  /** Physical area location (optional for Phase 1) */
+  area?: TableArea
 
   /** Group ID if table is in a group */
   tableGroupId?: string
