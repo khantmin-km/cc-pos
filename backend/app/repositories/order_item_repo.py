@@ -10,6 +10,7 @@ from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.order_item_print_event import OrderItemPrintEvent
 from app.models.order_item_serving import OrderItemServing
+from app.models.physical_table import PhysicalTable
 from app.models.table_group import TableGroup
 
 
@@ -75,3 +76,16 @@ def create_duplicate_print_event(
         )
     )
     db.flush()
+
+
+def get_order_item_print_payload(db: Session, order_item_id: UUID) -> tuple[str, str | None, str] | None:
+    stmt = (
+        select(OrderItem.menu_item_name_snap, OrderItem.note_snap, PhysicalTable.table_code)
+        .select_from(OrderItem)
+        .join(PhysicalTable, OrderItem.physical_table_id == PhysicalTable.id)
+        .where(OrderItem.id == order_item_id)
+    )
+    row = db.execute(stmt).one_or_none()
+    if not row:
+        return None
+    return row[0], row[1], row[2]

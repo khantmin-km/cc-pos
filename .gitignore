@@ -29,3 +29,4 @@ frontend/*.tsbuildinfo
 # Menu item images
 backend/app/static/menu/*
 !backend/app/static/menu/.gitkeep
+docs/local/

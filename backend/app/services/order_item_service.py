@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.printing import KitchenTicketItem, print_kitchen_ticket
 from app.repositories import order_item_repo
 from app.services.errors import ConflictError, InvalidStateError, NotFoundError
 from app.services.transaction import transactional
@@ -64,4 +65,20 @@ def reprint_order_item(db: Session, order_item_id: UUID) -> None:
         if status != ACTIVE:
             raise ConflictError("Only ACTIVE OrderItems can be reprinted")
 
-        order_item_repo.create_duplicate_print_event(db, order_item_id, printed_at=_now_utc())
+        payload = order_item_repo.get_order_item_print_payload(db, order_item_id)
+        if not payload:
+            raise NotFoundError("OrderItem not found")
+        menu_item_name, note, table_code = payload
+        if print_kitchen_ticket(
+            [
+                KitchenTicketItem(
+                    order_item_id=order_item_id,
+                    table_code=table_code,
+                    menu_item_name=menu_item_name,
+                    note=note,
+                )
+            ]
+        ):
+            order_item_repo.create_duplicate_print_event(db, order_item_id, printed_at=_now_utc())
+        else:
+            raise ConflictError("Print failed")
