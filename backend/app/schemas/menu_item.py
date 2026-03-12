@@ -17,6 +17,7 @@ class MenuItemResponse(BaseModel):
     name: str
     price: Decimal
     status: MenuItemStatus
+    image_url: str | None = None
     created_at: datetime
 
 

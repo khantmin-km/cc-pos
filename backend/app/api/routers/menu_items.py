@@ -1,7 +1,7 @@
 # backend/app/api/routers/menu_items.py
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -64,6 +64,26 @@ def update_menu_item(
 def retire_menu_item(menu_item_id: UUID, db: Session = Depends(get_db)) -> MenuItemResponse:
     try:
         item = menu_item_service.retire_menu_item(db, menu_item_id)
+        return MenuItemResponse.model_validate(item)
+    except Exception as exc:
+        _handle_error(exc)
+        raise
+
+
+@router.post("/{menu_item_id}/image", response_model=MenuItemResponse)
+def upload_menu_item_image(
+    menu_item_id: UUID,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> MenuItemResponse:
+    try:
+        data = file.file.read()
+        item = menu_item_service.update_menu_item_image(
+            db,
+            menu_item_id,
+            content_type=file.content_type,
+            data=data,
+        )
         return MenuItemResponse.model_validate(item)
     except Exception as exc:
         _handle_error(exc)

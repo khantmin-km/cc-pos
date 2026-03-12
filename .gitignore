@@ -25,3 +25,7 @@ frontend/.vscode/
 frontend/*.tsbuildinfo
 .eslintcache
 *.db
+
+# Menu item images
+backend/app/static/menu/*
+!backend/app/static/menu/.gitkeep
