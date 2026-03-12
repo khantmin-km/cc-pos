@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.printing import KitchenTicketItem, print_kitchen_ticket
 from app.repositories import menu_item_repo, order_repo, physical_table_repo, table_group_repo
 from app.schemas.order import OrderConfirmItemRequest
 from app.services.errors import ConflictError, InvalidStateError, NotFoundError
@@ -92,6 +93,7 @@ def confirm_order(
             )
 
             created_item_ids: list[UUID] = []
+            ticket_items: list[KitchenTicketItem] = []
             for line in items:
                 name_snap, price_snap = snapshots[line.menu_item_id]
                 for _ in range(line.quantity):
@@ -106,13 +108,21 @@ def confirm_order(
                         status=ACTIVE,
                     )
                     created_item_ids.append(created_item.id)
+                    ticket_items.append(
+                        KitchenTicketItem(
+                            order_item_id=created_item.id,
+                            table_code=table.table_code,
+                            menu_item_name=name_snap,
+                            note=line.note,
+                        )
+                    )
 
-            # Phase 1: record internal ORIGINAL print events; no printer integration here.
-            order_repo.create_original_print_events(
-                db=db,
-                order_item_ids=created_item_ids,
-                printed_at=_now_utc(),
-            )
+            if print_kitchen_ticket(ticket_items):
+                order_repo.create_original_print_events(
+                    db=db,
+                    order_item_ids=created_item_ids,
+                    printed_at=_now_utc(),
+                )
 
             stable_item_ids = order_repo.list_order_item_ids(db, order.id)
             return order.id, table_group_id, stable_item_ids
