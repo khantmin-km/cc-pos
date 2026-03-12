@@ -88,3 +88,20 @@ def test_menu_item_model_has_terminal_status_value(db_session: Session) -> None:
     db_session.commit()
     db_session.refresh(item)
     assert item.status == "RETIRED"
+
+
+def test_update_menu_item_image_sets_path(db_session: Session, tmp_path, monkeypatch) -> None:
+    item = menu_item_service.create_menu_item(db_session, name="Soup", price=Decimal("7.50"))
+    menu_dir = tmp_path / "menu"
+    menu_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(menu_item_service, "MENU_DIR", menu_dir)
+
+    updated = menu_item_service.update_menu_item_image(
+        db_session,
+        item.id,
+        content_type="image/png",
+        data=b"fake-image",
+    )
+
+    assert updated.image_path == f"menu/{item.id}.png"
+    assert (menu_dir / f"{item.id}.png").exists()
