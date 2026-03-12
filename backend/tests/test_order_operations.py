@@ -37,13 +37,14 @@ def test_confirm_order_creates_order_items_and_print_events(db_session: Session)
     group_id = table_group_service.start_service(db_session, table.id)
     item_a = seed_menu_item(db_session, "Noodle", "12.50")
     item_b = seed_menu_item(db_session, "Tea", "3.00")
+    note = "No chili"
 
     order_id, resolved_group_id, order_item_ids = order_service.confirm_order(
         db=db_session,
         physical_table_id=table.id,
         idempotency_key="order-key-1",
         items=[
-            OrderConfirmItemRequest(menu_item_id=item_a.id, quantity=2),
+            OrderConfirmItemRequest(menu_item_id=item_a.id, quantity=2, note=note),
             OrderConfirmItemRequest(menu_item_id=item_b.id, quantity=1),
         ],
     )
@@ -57,12 +58,18 @@ def test_confirm_order_creates_order_items_and_print_events(db_session: Session)
     assert order.idempotency_key == "order-key-1"
 
     created_count = db_session.scalar(select(func.count(OrderItem.id)).where(OrderItem.order_id == order_id))
+    note_count = db_session.scalar(
+        select(func.count(OrderItem.id))
+        .where(OrderItem.order_id == order_id)
+        .where(OrderItem.note_snap == note)
+    )
     print_count = db_session.scalar(
         select(func.count(OrderItemPrintEvent.order_item_id)).where(
             OrderItemPrintEvent.order_item_id.in_(order_item_ids)
         )
     )
     assert int(created_count or 0) == 3
+    assert int(note_count or 0) == 2
     assert int(print_count or 0) == 3
 
 

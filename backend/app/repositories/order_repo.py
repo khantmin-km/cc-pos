@@ -30,6 +30,7 @@ def create_order_item(
     menu_item_id: UUID,
     menu_item_name_snap: str,
     unit_price_snap: Decimal,
+    note_snap: str | None,
     status: str,
 ) -> OrderItem:
     item = OrderItem(
@@ -38,6 +39,7 @@ def create_order_item(
         menu_item_id=menu_item_id,
         menu_item_name_snap=menu_item_name_snap,
         unit_price_snap=unit_price_snap,
+        note_snap=note_snap,
         status=status,
     )
     db.add(item)

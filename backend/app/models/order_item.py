@@ -25,6 +25,7 @@ class OrderItem(Base):
     menu_item_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     menu_item_name_snap: Mapped[str] = mapped_column(String(200), nullable=False)
     unit_price_snap: Mapped[Decimal] = mapped_column(Numeric(10, 2, asdecimal=True), nullable=False)
+    note_snap: Mapped[str | None] = mapped_column(String(200), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
