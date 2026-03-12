@@ -19,7 +19,10 @@ import { useRouter } from 'vue-router'
 // Store imports
 import { useTablesStore } from '@/stores/tables'
 import { useTableGroupsStore } from '@/stores/tableGroups'
+<<<<<<< HEAD
 import { getRuntimeMode, onRuntimeModeChange, setRuntimeMode } from '@/services/runtimeMode'
+=======
+>>>>>>> df712ff (frontend_backend)
 
 // Type imports
 import type { Table } from '@/types/pos'
@@ -39,6 +42,7 @@ const router = useRouter()
 // Initialize stores
 const tablesStore = useTablesStore()
 const tableGroupsStore = useTableGroupsStore()
+<<<<<<< HEAD
 const mode = ref(getRuntimeMode())
 
 onRuntimeModeChange(async (m) => {
@@ -48,6 +52,8 @@ onRuntimeModeChange(async (m) => {
     tableGroupsStore.fetchOpenGroups(),
   ])
 })
+=======
+>>>>>>> df712ff (frontend_backend)
 
 // --------------------------------
 // State
@@ -111,6 +117,7 @@ function handleTableClick(table: Table) {
       <span class="subtitle">
         WAITER UI
       </span>
+<<<<<<< HEAD
       <button
         type="button"
         class="mode"
@@ -119,6 +126,8 @@ function handleTableClick(table: Table) {
       >
         Mode: {{ mode }}
       </button>
+=======
+>>>>>>> df712ff (frontend_backend)
     </div>
 
     <!-- Banner -->
@@ -133,6 +142,7 @@ function handleTableClick(table: Table) {
     />
 
     <!-- Table Grid -->
+<<<<<<< HEAD
     <div v-if="tablesStore.loading" class="state">
       Loading tables…
     </div>
@@ -160,6 +170,9 @@ function handleTableClick(table: Table) {
     </div>
 
     <div v-else class="table-grid">
+=======
+    <div class="table-grid">
+>>>>>>> df712ff (frontend_backend)
       <TableCard
         v-for="table in tablesStore.tablesByArea"
         :key="table.id"
@@ -202,6 +215,7 @@ function handleTableClick(table: Table) {
   color: var(--pos-text-muted);
 }
 
+<<<<<<< HEAD
 .mode {
   margin-left: auto;
   border: 1px solid var(--pos-border);
@@ -218,6 +232,8 @@ function handleTableClick(table: Table) {
   background: #fffbeb;
 }
 
+=======
+>>>>>>> df712ff (frontend_backend)
 .banner {
   background: var(--pos-primary);
   color: white;
@@ -233,6 +249,7 @@ function handleTableClick(table: Table) {
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
 }
+<<<<<<< HEAD
 
 .state {
   margin-top: 1rem;
@@ -276,4 +293,6 @@ function handleTableClick(table: Table) {
   color: var(--pos-text-muted);
   font-weight: 600;
 }
+=======
+>>>>>>> df712ff (frontend_backend)
 </style>
