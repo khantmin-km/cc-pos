@@ -1,5 +1,6 @@
 # backend/app/services/__init__.py
 from app.services import (
+    billing_service,
     menu_item_service,
     order_item_service,
     order_service,
@@ -8,6 +9,7 @@ from app.services import (
 )
 
 __all__ = [
+    "billing_service",
     "menu_item_service",
     "order_item_service",
     "order_service",
