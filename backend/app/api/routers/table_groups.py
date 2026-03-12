@@ -5,6 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.schemas.billing import (
+    BillAdjustmentCreateRequest,
+    BillAdjustmentResponse,
+    BillBreakdownResponse,
+)
 from app.schemas.table_group import (
     MergeTableGroupsRequest,
     SplitTableGroupRequest,
@@ -12,7 +17,7 @@ from app.schemas.table_group import (
     TableGroupResponse,
     TableGroupTableRequest,
 )
-from app.services import table_group_service
+from app.services import billing_service, table_group_service
 from app.services.errors import ConflictError, InvalidStateError, NotFoundError, SplitNotAllowedError
 
 router = APIRouter()
@@ -51,6 +56,39 @@ def get_group(table_group_id: UUID, db: Session = Depends(get_db)) -> TableGroup
     try:
         group = table_group_service.get_group(db, table_group_id)
         return _to_response(group)
+    except Exception as exc:
+        _handle_error(exc)
+        raise
+
+
+@router.get("/{table_group_id}/bill", response_model=BillBreakdownResponse)
+def get_bill(table_group_id: UUID, db: Session = Depends(get_db)) -> BillBreakdownResponse:
+    try:
+        breakdown = billing_service.get_bill_breakdown(db, table_group_id)
+        return BillBreakdownResponse(**breakdown)
+    except Exception as exc:
+        _handle_error(exc)
+        raise
+
+
+@router.post("/{table_group_id}/bill-adjustments", response_model=BillAdjustmentResponse)
+def create_bill_adjustment(
+    table_group_id: UUID,
+    request: BillAdjustmentCreateRequest,
+    db: Session = Depends(get_db),
+) -> BillAdjustmentResponse:
+    try:
+        adjustment = billing_service.create_bill_adjustment(
+            db,
+            table_group_id,
+            amount=request.amount,
+            description=request.description,
+            reason=request.reason,
+            created_by=request.created_by,
+            reference_order_item_id=request.reference_order_item_id,
+            category=request.category,
+        )
+        return BillAdjustmentResponse.model_validate(adjustment)
     except Exception as exc:
         _handle_error(exc)
         raise
