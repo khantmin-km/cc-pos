@@ -4,7 +4,15 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from app.api.routers import menu_items, order_items, orders, physical_tables, table_groups
+from app.api.routers import (
+    menu_items,
+    order_items,
+    orders,
+    physical_tables,
+    sessions,
+    table_groups,
+    waiters,
+)
 
 app = FastAPI(title="CC Backend")
 
@@ -17,6 +25,8 @@ app.include_router(orders.router, prefix="/tables", tags=["orders"])
 app.include_router(order_items.router, prefix="/order-items", tags=["order-items"])
 app.include_router(table_groups.router, prefix="/table-groups", tags=["table-groups"])
 app.include_router(menu_items.router, prefix="/menu-items", tags=["menu-items"])
+app.include_router(waiters.router, prefix="/waiters", tags=["waiters"])
+app.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
 
 
 @app.get("/health")

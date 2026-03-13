@@ -4,12 +4,14 @@ import os
 
 import pytest
 from sqlalchemy import create_engine
+from uuid import uuid4
 from sqlalchemy.orm import Session, sessionmaker
 
 os.environ.setdefault("ADMIN_TOKEN", "test-admin-token")
 
 from app.db.base import Base
 from app import models  # noqa: F401
+from app.services import actor_session_service, waiter_service
 
 
 @pytest.fixture(scope="session")
@@ -36,3 +38,16 @@ def db_session(engine) -> Generator[Session, None, None]:
         if transaction.is_active:
             transaction.rollback()
         connection.close()
+
+
+@pytest.fixture()
+def waiter_session_header(db_session: Session) -> dict[str, str]:
+    waiter = waiter_service.create_waiter(db_session, name=f"Waiter-{uuid4()}")
+    session = actor_session_service.create_waiter_session(db_session, waiter.id)
+    return {"X-Actor-Session": str(session.id)}
+
+
+@pytest.fixture()
+def admin_session_header(db_session: Session) -> dict[str, str]:
+    session = actor_session_service.create_admin_session(db_session, actor_name="admin")
+    return {"X-Actor-Session": str(session.id), "X-Admin-Token": os.environ["ADMIN_TOKEN"]}

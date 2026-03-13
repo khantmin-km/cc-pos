@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, require_actor_session
 from app.schemas.order import OrderConfirmRequest, OrderConfirmResponse
 from app.services import order_service
 from app.services.errors import ConflictError, InvalidStateError, NotFoundError
@@ -22,7 +22,11 @@ def _handle_error(exc: Exception) -> None:
     raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal error")
 
 
-@router.post("/{physical_table_id}/orders/confirm", response_model=OrderConfirmResponse)
+@router.post(
+    "/{physical_table_id}/orders/confirm",
+    response_model=OrderConfirmResponse,
+    dependencies=[Depends(require_actor_session)],
+)
 def confirm_order(
     physical_table_id: UUID,
     request: OrderConfirmRequest,

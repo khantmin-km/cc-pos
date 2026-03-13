@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, require_actor_session
 from app.schemas.physical_table import PhysicalTableResponse
 from app.schemas.table_group import TableGroupResponse
 from app.services import physical_table_service, table_group_service
@@ -23,7 +23,11 @@ def _handle_error(exc: Exception) -> None:
     raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal error")
 
 
-@router.get("", response_model=list[PhysicalTableResponse])
+@router.get(
+    "",
+    response_model=list[PhysicalTableResponse],
+    dependencies=[Depends(require_actor_session)],
+)
 def list_tables(db: Session = Depends(get_db)) -> list[PhysicalTableResponse]:
     rows = physical_table_service.list_tables(db)
     return [
@@ -32,7 +36,11 @@ def list_tables(db: Session = Depends(get_db)) -> list[PhysicalTableResponse]:
     ]
 
 
-@router.post("/{physical_table_id}/start-service", response_model=TableGroupResponse)
+@router.post(
+    "/{physical_table_id}/start-service",
+    response_model=TableGroupResponse,
+    dependencies=[Depends(require_actor_session)],
+)
 def start_service(physical_table_id: UUID, db: Session = Depends(get_db)) -> TableGroupResponse:
     try:
         group_id = table_group_service.start_service(db, physical_table_id)
