@@ -121,8 +121,9 @@ def test_request_bill_then_mark_paid_then_close(client: TestClient, db_session: 
     group_id = start.json()["id"]
 
     bill = client.post(f"/table-groups/{group_id}/request-bill")
-    paid = client.post(f"/table-groups/{group_id}/mark-paid")
-    closed = client.post(f"/table-groups/{group_id}/close")
+    admin_headers = {"X-Admin-Token": "test-admin-token"}
+    paid = client.post(f"/table-groups/{group_id}/mark-paid", headers=admin_headers)
+    closed = client.post(f"/table-groups/{group_id}/close", headers=admin_headers)
     final = client.get(f"/table-groups/{group_id}")
 
     assert bill.status_code == 200
@@ -173,6 +174,7 @@ def test_split_returns_409_when_order_items_exist(client: TestClient, db_session
     split = client.post(
         f"/table-groups/{group}/split",
         json={"physical_table_ids": [str(table_b.id)]},
+        headers={"X-Admin-Token": "test-admin-token"},
     )
 
     assert split.status_code == 409
@@ -270,7 +272,11 @@ def test_split_returns_409_for_empty_physical_table_list(
     table = seed_table(db_session, "API_T1")
     group = client.post(f"/tables/{table.id}/start-service").json()["id"]
 
-    response = client.post(f"/table-groups/{group}/split", json={"physical_table_ids": []})
+    response = client.post(
+        f"/table-groups/{group}/split",
+        json={"physical_table_ids": []},
+        headers={"X-Admin-Token": "test-admin-token"},
+    )
     assert response.status_code == 409
     assert response.json()["detail"] == "Split requires at least one PhysicalTable"
 
@@ -289,7 +295,11 @@ def test_merge_validation_returns_422_for_missing_field(client: TestClient) -> N
 
 
 def test_split_validation_returns_422_for_wrong_body_shape(client: TestClient) -> None:
-    response = client.post(f"/table-groups/{uuid4()}/split", json={"tables": [str(uuid4())]})
+    response = client.post(
+        f"/table-groups/{uuid4()}/split",
+        json={"tables": [str(uuid4())]},
+        headers={"X-Admin-Token": "test-admin-token"},
+    )
     assert response.status_code == 422
 
 
@@ -350,8 +360,9 @@ def test_list_open_groups_returns_non_closed_content_in_order(
 
     client.post(f"/table-groups/{group_bill_requested}/request-bill")
     client.post(f"/table-groups/{group_closed}/request-bill")
-    client.post(f"/table-groups/{group_closed}/mark-paid")
-    client.post(f"/table-groups/{group_closed}/close")
+    admin_headers = {"X-Admin-Token": "test-admin-token"}
+    client.post(f"/table-groups/{group_closed}/mark-paid", headers=admin_headers)
+    client.post(f"/table-groups/{group_closed}/close", headers=admin_headers)
 
     response = client.get("/table-groups/open")
     assert response.status_code == 200
@@ -390,6 +401,7 @@ def test_split_happy_path_returns_new_group_payload_and_updates_original(
     split_response = client.post(
         f"/table-groups/{source_group_id}/split",
         json={"physical_table_ids": [str(table_b.id), str(table_c.id)]},
+        headers={"X-Admin-Token": "test-admin-token"},
     )
     assert split_response.status_code == 200
     new_group = split_response.json()

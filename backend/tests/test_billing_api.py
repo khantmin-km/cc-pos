@@ -58,7 +58,10 @@ def test_get_bill_returns_breakdown(client: TestClient, db_session: Session) -> 
     group_id = table_group_service.start_service(db_session, table.id)
     seed_order_item(db_session, group_id, table.id, "10.00")
 
-    response = client.get(f"/table-groups/{group_id}/bill")
+    response = client.get(
+        f"/table-groups/{group_id}/bill",
+        headers={"X-Admin-Token": "test-admin-token"},
+    )
 
     assert response.status_code == 200
     payload = response.json()
@@ -83,6 +86,7 @@ def test_post_bill_adjustment_requires_bill_requested(
             "description": "Manual charge",
             "created_by": "staff_123",
         },
+        headers={"X-Admin-Token": "test-admin-token"},
     )
 
     assert response.status_code == 400
@@ -102,6 +106,7 @@ def test_post_bill_adjustment_rejects_negative_without_reason(
             "description": "Discount",
             "created_by": "staff_123",
         },
+        headers={"X-Admin-Token": "test-admin-token"},
     )
 
     assert response.status_code == 422
@@ -123,6 +128,17 @@ def test_post_bill_adjustment_rejects_negative_subtotal(
             "reason": "Mistake",
             "created_by": "staff_123",
         },
+        headers={"X-Admin-Token": "test-admin-token"},
     )
 
     assert response.status_code == 409
+
+
+def test_get_bill_requires_admin_token(client: TestClient, db_session: Session) -> None:
+    table = seed_table(db_session, "BA5")
+    group_id = table_group_service.start_service(db_session, table.id)
+    seed_order_item(db_session, group_id, table.id, "10.00")
+
+    response = client.get(f"/table-groups/{group_id}/bill")
+
+    assert response.status_code == 401

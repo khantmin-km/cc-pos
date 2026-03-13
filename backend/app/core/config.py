@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     database_url: str | None = None
     print_mode: str = "text"
+    admin_token: str | None = None
 
     @field_validator("database_url")
     @classmethod
@@ -22,6 +23,13 @@ class Settings(BaseSettings):
     def validate_print_mode(cls, value: str) -> str:
         if value not in {"text", "image"}:
             raise ValueError("PRINT_MODE must be 'text' or 'image'.")
+        return value
+
+    @field_validator("admin_token")
+    @classmethod
+    def validate_admin_token(cls, value: str | None) -> str | None:
+        if value is None or value.strip() == "":
+            raise ValueError("ADMIN_TOKEN is required. Set it in .env or the environment.")
         return value
 
 

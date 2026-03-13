@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, require_admin_token
 from app.schemas.billing import (
     BillAdjustmentCreateRequest,
     BillAdjustmentResponse,
@@ -61,7 +61,11 @@ def get_group(table_group_id: UUID, db: Session = Depends(get_db)) -> TableGroup
         raise
 
 
-@router.get("/{table_group_id}/bill", response_model=BillBreakdownResponse)
+@router.get(
+    "/{table_group_id}/bill",
+    response_model=BillBreakdownResponse,
+    dependencies=[Depends(require_admin_token)],
+)
 def get_bill(table_group_id: UUID, db: Session = Depends(get_db)) -> BillBreakdownResponse:
     try:
         breakdown = billing_service.get_bill_breakdown(db, table_group_id)
@@ -71,7 +75,11 @@ def get_bill(table_group_id: UUID, db: Session = Depends(get_db)) -> BillBreakdo
         raise
 
 
-@router.post("/{table_group_id}/bill-adjustments", response_model=BillAdjustmentResponse)
+@router.post(
+    "/{table_group_id}/bill-adjustments",
+    response_model=BillAdjustmentResponse,
+    dependencies=[Depends(require_admin_token)],
+)
 def create_bill_adjustment(
     table_group_id: UUID,
     request: BillAdjustmentCreateRequest,
@@ -103,7 +111,10 @@ def request_bill(table_group_id: UUID, db: Session = Depends(get_db)) -> None:
         raise
 
 
-@router.post("/{table_group_id}/mark-paid")
+@router.post(
+    "/{table_group_id}/mark-paid",
+    dependencies=[Depends(require_admin_token)],
+)
 def mark_paid(table_group_id: UUID, db: Session = Depends(get_db)) -> None:
     try:
         table_group_service.mark_paid(db, table_group_id)
@@ -112,7 +123,10 @@ def mark_paid(table_group_id: UUID, db: Session = Depends(get_db)) -> None:
         raise
 
 
-@router.post("/{table_group_id}/close")
+@router.post(
+    "/{table_group_id}/close",
+    dependencies=[Depends(require_admin_token)],
+)
 def close_group(table_group_id: UUID, db: Session = Depends(get_db)) -> None:
     try:
         table_group_service.close_group(db, table_group_id)
@@ -171,7 +185,11 @@ def merge_groups(request: MergeTableGroupsRequest, db: Session = Depends(get_db)
         raise
 
 
-@router.post("/{table_group_id}/split", response_model=TableGroupResponse)
+@router.post(
+    "/{table_group_id}/split",
+    response_model=TableGroupResponse,
+    dependencies=[Depends(require_admin_token)],
+)
 def split_group(
     table_group_id: UUID,
     request: SplitTableGroupRequest,

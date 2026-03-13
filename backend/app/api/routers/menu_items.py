@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, require_admin_token
 from app.schemas.menu_item import MenuItemCreateRequest, MenuItemResponse, MenuItemUpdateRequest
 from app.services import menu_item_service
 from app.services.errors import ConflictError, InvalidStateError, NotFoundError
@@ -27,7 +27,12 @@ def list_menu_items(db: Session = Depends(get_db)) -> list[MenuItemResponse]:
     return [MenuItemResponse.model_validate(item) for item in menu_item_service.list_menu_items(db)]
 
 
-@router.post("", response_model=MenuItemResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=MenuItemResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_admin_token)],
+)
 def create_menu_item(
     request: MenuItemCreateRequest,
     db: Session = Depends(get_db),
@@ -40,7 +45,11 @@ def create_menu_item(
         raise
 
 
-@router.patch("/{menu_item_id}", response_model=MenuItemResponse)
+@router.patch(
+    "/{menu_item_id}",
+    response_model=MenuItemResponse,
+    dependencies=[Depends(require_admin_token)],
+)
 def update_menu_item(
     menu_item_id: UUID,
     request: MenuItemUpdateRequest,
@@ -60,7 +69,11 @@ def update_menu_item(
         raise
 
 
-@router.post("/{menu_item_id}/retire", response_model=MenuItemResponse)
+@router.post(
+    "/{menu_item_id}/retire",
+    response_model=MenuItemResponse,
+    dependencies=[Depends(require_admin_token)],
+)
 def retire_menu_item(menu_item_id: UUID, db: Session = Depends(get_db)) -> MenuItemResponse:
     try:
         item = menu_item_service.retire_menu_item(db, menu_item_id)
@@ -70,7 +83,11 @@ def retire_menu_item(menu_item_id: UUID, db: Session = Depends(get_db)) -> MenuI
         raise
 
 
-@router.post("/{menu_item_id}/image", response_model=MenuItemResponse)
+@router.post(
+    "/{menu_item_id}/image",
+    response_model=MenuItemResponse,
+    dependencies=[Depends(require_admin_token)],
+)
 def upload_menu_item_image(
     menu_item_id: UUID,
     file: UploadFile = File(...),
