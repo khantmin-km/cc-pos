@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     session_close_time: str = "23:00"
     session_grace_minutes: int = 60
     session_timezone: str = "Asia/Bangkok"
+    cors_allow_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     @field_validator("database_url")
     @classmethod
@@ -66,6 +67,12 @@ class Settings(BaseSettings):
         except ZoneInfoNotFoundError as exc:
             raise ValueError("SESSION_TIMEZONE must be a valid IANA timezone.") from exc
         return value
+
+    @field_validator("cors_allow_origins")
+    @classmethod
+    def validate_cors_allow_origins(cls, value: str) -> str:
+        # Comma-separated list. Empty means "no CORS".
+        return value.strip()
 
 
 settings = Settings()
