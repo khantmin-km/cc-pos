@@ -6,6 +6,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+os.environ.setdefault("ADMIN_TOKEN", "test-admin-token")
+
 from app.db.base import Base
 from app import models  # noqa: F401
 

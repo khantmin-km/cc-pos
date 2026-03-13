@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, require_admin_token
 from app.services import order_item_service
 from app.services.errors import ConflictError, InvalidStateError, NotFoundError
 
@@ -21,7 +21,11 @@ def _handle_error(exc: Exception) -> None:
     raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal error")
 
 
-@router.post("/{order_item_id}/void", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/{order_item_id}/void",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_admin_token)],
+)
 def void_order_item(order_item_id: UUID, db: Session = Depends(get_db)) -> Response:
     try:
         order_item_service.void_order_item(db, order_item_id)
@@ -31,7 +35,11 @@ def void_order_item(order_item_id: UUID, db: Session = Depends(get_db)) -> Respo
         raise
 
 
-@router.post("/{order_item_id}/mark-served", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/{order_item_id}/mark-served",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_admin_token)],
+)
 def mark_order_item_served(order_item_id: UUID, db: Session = Depends(get_db)) -> Response:
     try:
         order_item_service.mark_order_item_served(db, order_item_id)
@@ -41,7 +49,11 @@ def mark_order_item_served(order_item_id: UUID, db: Session = Depends(get_db)) -
         raise
 
 
-@router.post("/{order_item_id}/reprint", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/{order_item_id}/reprint",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_admin_token)],
+)
 def reprint_order_item(order_item_id: UUID, db: Session = Depends(get_db)) -> Response:
     try:
         order_item_service.reprint_order_item(db, order_item_id)
