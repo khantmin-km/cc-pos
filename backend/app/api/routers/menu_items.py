@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, require_admin_token
+from app.api.deps import get_db, require_actor_session, require_admin_session, require_admin_token
 from app.schemas.menu_item import MenuItemCreateRequest, MenuItemResponse, MenuItemUpdateRequest
 from app.services import menu_item_service
 from app.services.errors import ConflictError, InvalidStateError, NotFoundError
@@ -22,7 +22,11 @@ def _handle_error(exc: Exception) -> None:
     raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal error")
 
 
-@router.get("", response_model=list[MenuItemResponse])
+@router.get(
+    "",
+    response_model=list[MenuItemResponse],
+    dependencies=[Depends(require_actor_session)],
+)
 def list_menu_items(db: Session = Depends(get_db)) -> list[MenuItemResponse]:
     return [MenuItemResponse.model_validate(item) for item in menu_item_service.list_menu_items(db)]
 
@@ -31,7 +35,7 @@ def list_menu_items(db: Session = Depends(get_db)) -> list[MenuItemResponse]:
     "",
     response_model=MenuItemResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_admin_token)],
+    dependencies=[Depends(require_admin_token), Depends(require_admin_session)],
 )
 def create_menu_item(
     request: MenuItemCreateRequest,
@@ -48,7 +52,7 @@ def create_menu_item(
 @router.patch(
     "/{menu_item_id}",
     response_model=MenuItemResponse,
-    dependencies=[Depends(require_admin_token)],
+    dependencies=[Depends(require_admin_token), Depends(require_admin_session)],
 )
 def update_menu_item(
     menu_item_id: UUID,
@@ -72,7 +76,7 @@ def update_menu_item(
 @router.post(
     "/{menu_item_id}/retire",
     response_model=MenuItemResponse,
-    dependencies=[Depends(require_admin_token)],
+    dependencies=[Depends(require_admin_token), Depends(require_admin_session)],
 )
 def retire_menu_item(menu_item_id: UUID, db: Session = Depends(get_db)) -> MenuItemResponse:
     try:
@@ -86,7 +90,7 @@ def retire_menu_item(menu_item_id: UUID, db: Session = Depends(get_db)) -> MenuI
 @router.post(
     "/{menu_item_id}/image",
     response_model=MenuItemResponse,
-    dependencies=[Depends(require_admin_token)],
+    dependencies=[Depends(require_admin_token), Depends(require_admin_session)],
 )
 def upload_menu_item_image(
     menu_item_id: UUID,
