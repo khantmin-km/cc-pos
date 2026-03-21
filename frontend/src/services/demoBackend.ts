@@ -1,21 +1,68 @@
-import type { PhysicalTable, TableGroup } from '@/types/pos'
+import type {
+  PhysicalTable,
+  TableGroup,
+  MenuItem,
+  Waiter,
+  Order,
+  OrderItem,
+  ActorSession,
+  BillBreakdown,
+  BillAdjustment,
+} from '@/types/pos'
 
 type DemoState = {
   tables: PhysicalTable[]
   groups: TableGroup[]
+  menuItems: MenuItem[]
+  waiters: Waiter[]
+  orders: Order[]
+  orderItems: OrderItem[]
+  sessions: ActorSession[]
+  billAdjustments: BillAdjustment[]
 }
 
 const KEY = 'ccpos_demo_state_v1'
+const DEMO_WAITER_ID = 'demo-waiter'
+const DEMO_WAITER_NAME = 'Demo Waiter'
 
 function nowIso() {
   return new Date().toISOString()
+}
+
+function normalizeState(input: Partial<DemoState>): DemoState {
+  const state: DemoState = {
+    tables: input.tables ?? [],
+    groups: input.groups ?? [],
+    menuItems: input.menuItems ?? [],
+    waiters: input.waiters ?? [],
+    orders: input.orders ?? [],
+    orderItems: input.orderItems ?? [],
+    sessions: input.sessions ?? [],
+    billAdjustments: input.billAdjustments ?? [],
+  }
+
+  // Guarantee one built-in waiter so login always has an option.
+  const hasDemoWaiter = state.waiters.some((w) => w.id === DEMO_WAITER_ID)
+  if (!hasDemoWaiter) {
+    state.waiters.unshift({
+      id: DEMO_WAITER_ID,
+      name: DEMO_WAITER_NAME,
+      active: true,
+      createdAt: nowIso(),
+    })
+  }
+
+  return state
 }
 
 function load(): DemoState {
   const raw = localStorage.getItem(KEY)
   if (raw) {
     try {
-      return JSON.parse(raw) as DemoState
+      const parsed = JSON.parse(raw) as Partial<DemoState>
+      const normalized = normalizeState(parsed)
+      save(normalized)
+      return normalized
     } catch {
       // fall through
     }
@@ -30,7 +77,28 @@ function load(): DemoState {
     }
   })
 
-  const state: DemoState = { tables, groups: [] }
+  const menuItems: MenuItem[] = [
+    { id: crypto.randomUUID(), name: 'Pad Thai', price: 120, category: 'Noodles', available: true },
+    { id: crypto.randomUUID(), name: 'Green Curry', price: 150, category: 'Curry', available: true },
+    { id: crypto.randomUUID(), name: 'Tom Yum Soup', price: 100, category: 'Soup', available: true },
+    { id: crypto.randomUUID(), name: 'Spring Rolls', price: 80, category: 'Appetizer', available: true },
+    { id: crypto.randomUUID(), name: 'Fried Rice', price: 110, category: 'Rice', available: true },
+  ]
+
+  const waiters: Waiter[] = [
+    { id: DEMO_WAITER_ID, name: DEMO_WAITER_NAME, active: true, createdAt: nowIso() },
+  ]
+
+  const state = normalizeState({
+    tables,
+    groups: [],
+    menuItems,
+    waiters,
+    orders: [],
+    orderItems: [],
+    sessions: [],
+    billAdjustments: [],
+  })
   save(state)
   return state
 }
@@ -187,6 +255,184 @@ export const demoTableGroupsApi = {
     }
     save(state)
     return newGroup
+  },
+}
+
+// Menu Items
+export const demoMenuItemsApi = {
+  list: async (): Promise<MenuItem[]> => {
+    return load().menuItems.filter((m) => m.available)
+  },
+
+  create: async (name: string, price: number, category: string): Promise<MenuItem> => {
+    const state = load()
+    const item: MenuItem = {
+      id: crypto.randomUUID(),
+      name,
+      price,
+      category,
+      available: true,
+    }
+    state.menuItems.push(item)
+    save(state)
+    return item
+  },
+
+  update: async (id: string, name: string, price: number, category: string): Promise<MenuItem> => {
+    const state = load()
+    const item = state.menuItems.find((m) => m.id === id)
+    if (!item) throw new Error('Menu item not found (demo)')
+    item.name = name
+    item.price = price
+    item.category = category
+    save(state)
+    return item
+  },
+
+  uploadImage: async (id: string, file: File): Promise<MenuItem> => {
+    const state = load()
+    const item = state.menuItems.find((m) => m.id === id)
+    if (!item) throw new Error('Menu item not found (demo)')
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(new Error('Failed to read image file'))
+      reader.readAsDataURL(file)
+    })
+
+    item.image = dataUrl
+    save(state)
+    return item
+  },
+
+  retire: async (id: string): Promise<void> => {
+    const state = load()
+    const item = state.menuItems.find((m) => m.id === id)
+    if (!item) throw new Error('Menu item not found (demo)')
+    item.available = false
+    save(state)
+  },
+}
+
+// Waiters
+export const demoWaitersApi = {
+  list: async (): Promise<Waiter[]> => {
+    return load().waiters
+  },
+
+  create: async (name: string): Promise<Waiter> => {
+    const state = load()
+    const waiter: Waiter = {
+      id: crypto.randomUUID(),
+      name,
+      active: true,
+      createdAt: nowIso(),
+    }
+    state.waiters.push(waiter)
+    save(state)
+    return waiter
+  },
+
+  update: async (id: string, name: string, active: boolean): Promise<Waiter> => {
+    const state = load()
+    const waiter = state.waiters.find((w) => w.id === id)
+    if (!waiter) throw new Error('Waiter not found (demo)')
+    waiter.name = name
+    waiter.active = active
+    save(state)
+    return waiter
+  },
+}
+
+// Sessions (Demo)
+export const demoSessionsApi = {
+  create: async (role: string, actorId: string): Promise<ActorSession> => {
+    const state = load()
+    const session: ActorSession = {
+      id: crypto.randomUUID(),
+      actorType: role as 'waiter' | 'admin',
+      actorId,
+      actorName: role === 'admin' ? 'Admin User' : state.waiters.find((w) => w.id === actorId)?.name || 'Unknown',
+      token: crypto.randomUUID(),
+      startedAt: nowIso(),
+    }
+    state.sessions.push(session)
+    save(state)
+    return session
+  },
+
+  end: async (sessionId: string): Promise<void> => {
+    const state = load()
+    state.sessions = state.sessions.filter((s) => s.id !== sessionId)
+    save(state)
+  },
+}
+
+// Orders (Demo)
+export const demoOrdersApi = {
+  confirm: async (tableGroupId: string, request?: any) => {
+    const state = load()
+    const order: Order = {
+      id: crypto.randomUUID(),
+      tableId: '',
+      tableGroupId,
+      createdAt: nowIso(),
+      items: [],
+    }
+    state.orders.push(order)
+    save(state)
+    return {
+      orderId: order.id,
+      orderItemIds: [],
+      tableGroupId,
+    }
+  },
+}
+
+// Order Items (Demo)
+export const demoOrderItemsApi = {
+  void: async (orderItemId: string): Promise<void> => {
+    // Demo only
+  },
+
+  markServed: async (orderItemId: string): Promise<void> => {
+    // Demo only
+  },
+
+  reprint: async (orderItemId: string): Promise<void> => {
+    // Just a no-op in demo
+  },
+}
+
+// Billing (Demo)
+export const demoBillingApi = {
+  getBillBreakdown: async (tableGroupId: string) => {
+    return {
+      tableGroupId,
+      items: [],
+      subtotal: 0,
+      tax: 0,
+      serviceCharge: 0,
+      adjustments: [],
+      total: 0,
+    }
+  },
+
+  createAdjustment: async (tableGroupId: string, description: string, amount: number): Promise<BillAdjustment> => {
+    const state = load()
+    const adjustment: BillAdjustment = {
+      id: crypto.randomUUID(),
+      description,
+      amount,
+      reason: 'admin',
+      category: amount > 0 ? 'surcharge' : 'discount',
+      createdBy: 'admin',
+      createdAt: nowIso(),
+    }
+    state.billAdjustments.push(adjustment)
+    save(state)
+    return adjustment
   },
 }
 

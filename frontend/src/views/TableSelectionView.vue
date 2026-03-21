@@ -87,7 +87,7 @@ onMounted(async () => {
 function handleTableClick(table: Table) {
   if (table.status === 'available') {
     // Navigate to menu for ordering
-    router.push(`/menu/${table.id}`)
+    router.push(`/waiter/menu/${table.id}`)
 
   } else if (table.status === 'reserved') {
     // Show reserved warning
@@ -96,7 +96,7 @@ function handleTableClick(table: Table) {
 
   } else if (table.status === 'occupied') {
     // Navigate to order management
-    router.push(`/orders/${table.id}`)
+    router.push(`/waiter/orders/${table.id}`)
   }
 }
 </script>
