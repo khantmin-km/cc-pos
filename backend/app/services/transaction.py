@@ -8,8 +8,13 @@ from sqlalchemy.orm import Session
 @contextmanager
 def transactional(db: Session) -> Iterator[None]:
     if db.in_transaction():
-        with db.begin_nested():
-            yield
+        try:
+            with db.begin_nested():
+                yield
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
     else:
         with db.begin():
             yield

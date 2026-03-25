@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, require_actor_session
+from app.api.deps import get_current_user, get_db
 from app.schemas.order import OrderConfirmRequest, OrderConfirmResponse
 from app.services import order_service
 from app.services.errors import ConflictError, InvalidStateError, NotFoundError
@@ -25,7 +25,7 @@ def _handle_error(exc: Exception) -> None:
 @router.post(
     "/{physical_table_id}/orders/confirm",
     response_model=OrderConfirmResponse,
-    dependencies=[Depends(require_actor_session)],
+    dependencies=[Depends(get_current_user)],
 )
 def confirm_order(
     physical_table_id: UUID,
