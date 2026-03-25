@@ -56,7 +56,7 @@ def seed_order_item(db: Session, table_group_id, physical_table_id, price: str) 
 def test_get_bill_returns_breakdown(
     client: TestClient,
     db_session: Session,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "BA1")
     group_id = table_group_service.start_service(db_session, table.id)
@@ -64,7 +64,7 @@ def test_get_bill_returns_breakdown(
 
     response = client.get(
         f"/table-groups/{group_id}/bill",
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
 
     assert response.status_code == 200
@@ -80,7 +80,7 @@ def test_get_bill_returns_breakdown(
 def test_post_bill_adjustment_requires_bill_requested(
     client: TestClient,
     db_session: Session,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "BA2")
     group_id = table_group_service.start_service(db_session, table.id)
@@ -92,7 +92,7 @@ def test_post_bill_adjustment_requires_bill_requested(
             "description": "Manual charge",
             "created_by": "staff_123",
         },
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
 
     assert response.status_code == 400
@@ -101,7 +101,7 @@ def test_post_bill_adjustment_requires_bill_requested(
 def test_post_bill_adjustment_rejects_negative_without_reason(
     client: TestClient,
     db_session: Session,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "BA3")
     group_id = table_group_service.start_service(db_session, table.id)
@@ -114,7 +114,7 @@ def test_post_bill_adjustment_rejects_negative_without_reason(
             "description": "Discount",
             "created_by": "staff_123",
         },
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
 
     assert response.status_code == 422
@@ -123,7 +123,7 @@ def test_post_bill_adjustment_rejects_negative_without_reason(
 def test_post_bill_adjustment_rejects_negative_subtotal(
     client: TestClient,
     db_session: Session,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "BA4")
     group_id = table_group_service.start_service(db_session, table.id)
@@ -138,13 +138,13 @@ def test_post_bill_adjustment_rejects_negative_subtotal(
             "reason": "Mistake",
             "created_by": "staff_123",
         },
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
 
     assert response.status_code == 409
 
 
-def test_get_bill_requires_admin_token(client: TestClient, db_session: Session) -> None:
+def test_get_bill_requires_admin_auth(client: TestClient, db_session: Session) -> None:
     table = seed_table(db_session, "BA5")
     group_id = table_group_service.start_service(db_session, table.id)
     seed_order_item(db_session, group_id, table.id, "10.00")

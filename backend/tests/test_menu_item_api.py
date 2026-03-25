@@ -41,11 +41,11 @@ def assert_menu_item_response(payload: dict) -> None:
     assert payload["created_at"] is not None
 
 
-def test_create_menu_item_api(client: TestClient, admin_session_header: dict[str, str]) -> None:
+def test_create_menu_item_api(client: TestClient, admin_auth_header: dict[str, str]) -> None:
     response = client.post(
         "/menu-items",
         json={"name": "Soup", "price": "7.50"},
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
     assert response.status_code == 201
     payload = response.json()
@@ -57,11 +57,11 @@ def test_create_menu_item_api(client: TestClient, admin_session_header: dict[str
 def test_list_menu_items_api(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     item = seed_menu_item(db_session, "Tea", "2.00")
 
-    response = client.get("/menu-items", headers=waiter_session_header)
+    response = client.get("/menu-items", headers=waiter_auth_header)
     assert response.status_code == 200
     payload = response.json()
     assert isinstance(payload, list)
@@ -71,14 +71,14 @@ def test_list_menu_items_api(
 def test_update_menu_item_api(
     client: TestClient,
     db_session: Session,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     item = seed_menu_item(db_session, "Soup", "7.50")
 
     response = client.patch(
         f"/menu-items/{item.id}",
         json={"name": "Hot Soup", "price": "8.00", "status": "UNAVAILABLE"},
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
     assert response.status_code == 200
     payload = response.json()
@@ -91,13 +91,13 @@ def test_update_menu_item_api(
 def test_retire_menu_item_api(
     client: TestClient,
     db_session: Session,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     item = seed_menu_item(db_session, "Soup", "7.50")
 
     response = client.post(
         f"/menu-items/{item.id}/retire",
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
     assert response.status_code == 200
     payload = response.json()
@@ -108,14 +108,14 @@ def test_retire_menu_item_api(
 def test_retired_menu_item_cannot_be_unretired_api(
     client: TestClient,
     db_session: Session,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     item = seed_menu_item(db_session, "Soup", "7.50", status="RETIRED")
 
     response = client.patch(
         f"/menu-items/{item.id}",
         json={"status": "AVAILABLE"},
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
     assert response.status_code == 400
     assert response.json()["detail"] == "RETIRED MenuItem cannot transition to AVAILABLE or UNAVAILABLE"
@@ -123,12 +123,12 @@ def test_retired_menu_item_cannot_be_unretired_api(
 
 def test_menu_item_api_not_found(
     client: TestClient,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     response = client.patch(
         f"/menu-items/{uuid4()}",
         json={"name": "X"},
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
     assert response.status_code == 404
     assert response.json()["detail"] == "MenuItem not found"
@@ -136,22 +136,22 @@ def test_menu_item_api_not_found(
 
 def test_menu_item_api_validation_errors(
     client: TestClient,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     bad_create = client.post(
         "/menu-items",
         json={"name": "", "price": "0"},
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
     bad_update_empty = client.patch(
         f"/menu-items/{uuid4()}",
         json={},
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
     bad_update_status = client.patch(
         f"/menu-items/{uuid4()}",
         json={"status": "ARCHIVED"},
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
 
     assert bad_create.status_code == 422
@@ -162,7 +162,7 @@ def test_menu_item_api_validation_errors(
 def test_upload_menu_item_image_api(
     client: TestClient,
     db_session: Session,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
     tmp_path,
     monkeypatch,
 ) -> None:
@@ -174,7 +174,7 @@ def test_upload_menu_item_image_api(
     response = client.post(
         f"/menu-items/{item.id}/image",
         files={"file": ("soup.png", b"fake-image", "image/png")},
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
 
     assert response.status_code == 200
@@ -183,6 +183,6 @@ def test_upload_menu_item_image_api(
     assert (menu_dir / f"{item.id}.png").exists()
 
 
-def test_menu_item_api_requires_admin_token(client: TestClient) -> None:
+def test_menu_item_api_requires_admin_auth(client: TestClient) -> None:
     response = client.post("/menu-items", json={"name": "Soup", "price": "7.50"})
     assert response.status_code == 401

@@ -1,17 +1,16 @@
 # backend/tests/conftest.py
 from collections.abc import Generator
 import os
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import create_engine
-from uuid import uuid4
 from sqlalchemy.orm import Session, sessionmaker
-
-os.environ.setdefault("ADMIN_TOKEN", "test-admin-token")
 
 from app.db.base import Base
 from app import models  # noqa: F401
-from app.services import actor_session_service, waiter_service
+from app.repositories import user_repo
+from app.services import auth_service
 
 
 @pytest.fixture(scope="session")
@@ -41,13 +40,28 @@ def db_session(engine) -> Generator[Session, None, None]:
 
 
 @pytest.fixture()
-def waiter_session_header(db_session: Session) -> dict[str, str]:
-    waiter = waiter_service.create_waiter(db_session, name=f"Waiter-{uuid4()}")
-    session = actor_session_service.create_waiter_session(db_session, waiter.id)
-    return {"X-Actor-Session": str(session.id)}
+def waiter_auth_header(db_session: Session) -> dict[str, str]:
+    username = f"waiter-{uuid4()}"
+    pin = "1234"
+    user_repo.create_user(
+        db_session,
+        username=username,
+        pin_hash=auth_service.hash_pin(pin),
+        role=auth_service.ROLE_WAITER,
+    )
+    _, session = auth_service.login(db_session, username=username, pin=pin)
+    return {"Authorization": f"Bearer {session.token}"}
 
 
 @pytest.fixture()
-def admin_session_header(db_session: Session) -> dict[str, str]:
-    session = actor_session_service.create_admin_session(db_session, actor_name="admin")
-    return {"X-Actor-Session": str(session.id), "X-Admin-Token": os.environ["ADMIN_TOKEN"]}
+def admin_auth_header(db_session: Session) -> dict[str, str]:
+    username = f"admin-{uuid4()}"
+    pin = "9999"
+    user_repo.create_user(
+        db_session,
+        username=username,
+        pin_hash=auth_service.hash_pin(pin),
+        role=auth_service.ROLE_ADMIN,
+    )
+    _, session = auth_service.login(db_session, username=username, pin=pin)
+    return {"Authorization": f"Bearer {session.token}"}
