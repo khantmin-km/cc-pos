@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 @contextmanager
 def transactional(db: Session) -> Iterator[None]:
     if db.in_transaction():
+        # Keep the outer transaction ownership with caller (e.g. request/tests).
         with db.begin_nested():
             yield
     else:

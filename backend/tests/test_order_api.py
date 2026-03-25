@@ -56,10 +56,10 @@ def assert_confirm_response(payload: dict) -> None:
 def test_confirm_order_api_success(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "OA1")
-    client.post(f"/tables/{table.id}/start-service", headers=waiter_session_header)
+    client.post(f"/tables/{table.id}/start-service", headers=waiter_auth_header)
     item_a = seed_menu_item(db_session, "Noodle", "11.00")
     item_b = seed_menu_item(db_session, "Tea", "2.50")
     note = "No onions"
@@ -73,7 +73,7 @@ def test_confirm_order_api_success(
                 {"menu_item_id": str(item_b.id), "quantity": 1},
             ],
         },
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
 
     assert response.status_code == 200
@@ -93,7 +93,7 @@ def test_confirm_order_api_success(
 def test_confirm_order_api_rejects_free_table(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "OA1")
     item = seed_menu_item(db_session, "Noodle", "11.00")
@@ -104,7 +104,7 @@ def test_confirm_order_api_rejects_free_table(
             "idempotency_key": "api-order-2",
             "items": [{"menu_item_id": str(item.id), "quantity": 1}],
         },
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
 
     assert response.status_code == 409
@@ -114,12 +114,12 @@ def test_confirm_order_api_rejects_free_table(
 def test_confirm_order_api_rejects_non_open_group(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "OA1")
-    started = client.post(f"/tables/{table.id}/start-service", headers=waiter_session_header)
+    started = client.post(f"/tables/{table.id}/start-service", headers=waiter_auth_header)
     group_id = started.json()["id"]
-    client.post(f"/table-groups/{group_id}/request-bill", headers=waiter_session_header)
+    client.post(f"/table-groups/{group_id}/request-bill", headers=waiter_auth_header)
     item = seed_menu_item(db_session, "Noodle", "11.00")
 
     response = client.post(
@@ -128,7 +128,7 @@ def test_confirm_order_api_rejects_non_open_group(
             "idempotency_key": "api-order-3",
             "items": [{"menu_item_id": str(item.id), "quantity": 1}],
         },
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
 
     assert response.status_code == 400
@@ -138,10 +138,10 @@ def test_confirm_order_api_rejects_non_open_group(
 def test_confirm_order_api_rejects_nonexistent_menu_item(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "OA1")
-    client.post(f"/tables/{table.id}/start-service", headers=waiter_session_header)
+    client.post(f"/tables/{table.id}/start-service", headers=waiter_auth_header)
 
     response = client.post(
         f"/tables/{table.id}/orders/confirm",
@@ -149,7 +149,7 @@ def test_confirm_order_api_rejects_nonexistent_menu_item(
             "idempotency_key": "api-order-4",
             "items": [{"menu_item_id": str(uuid4()), "quantity": 1}],
         },
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
 
     assert response.status_code == 409
@@ -159,10 +159,10 @@ def test_confirm_order_api_rejects_nonexistent_menu_item(
 def test_confirm_order_api_rejects_unavailable_menu_item(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "OA1")
-    client.post(f"/tables/{table.id}/start-service", headers=waiter_session_header)
+    client.post(f"/tables/{table.id}/start-service", headers=waiter_auth_header)
     item = seed_menu_item(db_session, "Noodle", "11.00", status="UNAVAILABLE")
 
     response = client.post(
@@ -171,7 +171,7 @@ def test_confirm_order_api_rejects_unavailable_menu_item(
             "idempotency_key": "api-order-5",
             "items": [{"menu_item_id": str(item.id), "quantity": 1}],
         },
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
 
     assert response.status_code == 409
@@ -181,10 +181,10 @@ def test_confirm_order_api_rejects_unavailable_menu_item(
 def test_confirm_order_api_idempotency_returns_same_order(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "OA1")
-    client.post(f"/tables/{table.id}/start-service", headers=waiter_session_header)
+    client.post(f"/tables/{table.id}/start-service", headers=waiter_auth_header)
     item = seed_menu_item(db_session, "Noodle", "11.00")
 
     request_payload = {
@@ -194,12 +194,12 @@ def test_confirm_order_api_idempotency_returns_same_order(
     first = client.post(
         f"/tables/{table.id}/orders/confirm",
         json=request_payload,
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     second = client.post(
         f"/tables/{table.id}/orders/confirm",
         json=request_payload,
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
 
     assert first.status_code == 200
@@ -218,7 +218,7 @@ def test_confirm_order_api_idempotency_returns_same_order(
 def test_confirm_order_api_validation_errors(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "OA1")
     long_note = "x" * 201
@@ -226,12 +226,12 @@ def test_confirm_order_api_validation_errors(
     missing_key = client.post(
         f"/tables/{table.id}/orders/confirm",
         json={"items": [{"menu_item_id": str(uuid4()), "quantity": 1}]},
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     empty_items = client.post(
         f"/tables/{table.id}/orders/confirm",
         json={"idempotency_key": "api-order-6", "items": []},
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     invalid_quantity = client.post(
         f"/tables/{table.id}/orders/confirm",
@@ -239,7 +239,7 @@ def test_confirm_order_api_validation_errors(
             "idempotency_key": "api-order-7",
             "items": [{"menu_item_id": str(uuid4()), "quantity": 0}],
         },
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     invalid_note = client.post(
         f"/tables/{table.id}/orders/confirm",
@@ -247,7 +247,7 @@ def test_confirm_order_api_validation_errors(
             "idempotency_key": "api-order-8",
             "items": [{"menu_item_id": str(uuid4()), "quantity": 1, "note": long_note}],
         },
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
 
     assert missing_key.status_code == 422

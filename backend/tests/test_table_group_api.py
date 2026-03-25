@@ -78,11 +78,11 @@ def assert_table_group_payload_contract(
 def test_get_tables_returns_seeded_tables(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "API_T1")
 
-    response = client.get("/tables", headers=waiter_session_header)
+    response = client.get("/tables", headers=waiter_auth_header)
 
     assert response.status_code == 200
     payload = response.json()
@@ -93,13 +93,13 @@ def test_get_tables_returns_seeded_tables(
 def test_start_service_returns_group_payload(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "API_T1")
 
     response = client.post(
         f"/tables/{table.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
 
     assert response.status_code == 200
@@ -112,42 +112,42 @@ def test_start_service_returns_group_payload(
 def test_start_service_returns_409_for_assigned_table(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "API_T1")
-    first = client.post(f"/tables/{table.id}/start-service", headers=waiter_session_header)
+    first = client.post(f"/tables/{table.id}/start-service", headers=waiter_auth_header)
     assert first.status_code == 200
 
-    second = client.post(f"/tables/{table.id}/start-service", headers=waiter_session_header)
+    second = client.post(f"/tables/{table.id}/start-service", headers=waiter_auth_header)
 
     assert second.status_code == 409
 
 
 def test_get_table_group_by_id_returns_404_for_missing(
     client: TestClient,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
-    response = client.get(f"/table-groups/{uuid4()}", headers=waiter_session_header)
+    response = client.get(f"/table-groups/{uuid4()}", headers=waiter_auth_header)
     assert response.status_code == 404
 
 
 def test_request_bill_then_mark_paid_then_close(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
-    admin_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "API_T1")
-    start = client.post(f"/tables/{table.id}/start-service", headers=waiter_session_header)
+    start = client.post(f"/tables/{table.id}/start-service", headers=waiter_auth_header)
     group_id = start.json()["id"]
 
     bill = client.post(
         f"/table-groups/{group_id}/request-bill",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
-    paid = client.post(f"/table-groups/{group_id}/mark-paid", headers=admin_session_header)
-    closed = client.post(f"/table-groups/{group_id}/close", headers=admin_session_header)
-    final = client.get(f"/table-groups/{group_id}", headers=waiter_session_header)
+    paid = client.post(f"/table-groups/{group_id}/mark-paid", headers=admin_auth_header)
+    closed = client.post(f"/table-groups/{group_id}/close", headers=admin_auth_header)
+    final = client.get(f"/table-groups/{group_id}", headers=waiter_auth_header)
 
     assert bill.status_code == 200
     assert paid.status_code == 200
@@ -160,39 +160,39 @@ def test_request_bill_then_mark_paid_then_close(
 def test_request_bill_returns_400_when_not_open(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "API_T1")
-    start = client.post(f"/tables/{table.id}/start-service", headers=waiter_session_header)
+    start = client.post(f"/tables/{table.id}/start-service", headers=waiter_auth_header)
     group_id = start.json()["id"]
-    first = client.post(f"/table-groups/{group_id}/request-bill", headers=waiter_session_header)
+    first = client.post(f"/table-groups/{group_id}/request-bill", headers=waiter_auth_header)
     assert first.status_code == 200
 
-    second = client.post(f"/table-groups/{group_id}/request-bill", headers=waiter_session_header)
+    second = client.post(f"/table-groups/{group_id}/request-bill", headers=waiter_auth_header)
     assert second.status_code == 400
 
 
 def test_merge_returns_400_when_group_not_open(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table_a = seed_table(db_session, "API_T1")
     table_b = seed_table(db_session, "API_T2")
     group_a = client.post(
         f"/tables/{table_a.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
     group_b = client.post(
         f"/tables/{table_b.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
-    client.post(f"/table-groups/{group_b}/request-bill", headers=waiter_session_header)
+    client.post(f"/table-groups/{group_b}/request-bill", headers=waiter_auth_header)
 
     response = client.post(
         "/table-groups/merge",
         json={"source_group_id": group_b, "target_group_id": group_a},
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
 
     assert response.status_code == 400
@@ -201,19 +201,19 @@ def test_merge_returns_400_when_group_not_open(
 def test_split_returns_409_when_order_items_exist(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
-    admin_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     table_a = seed_table(db_session, "API_T1")
     table_b = seed_table(db_session, "API_T2")
     group = client.post(
         f"/tables/{table_a.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
     attach = client.post(
         f"/table-groups/{group}/tables/add",
         json={"physical_table_id": str(table_b.id)},
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     assert attach.status_code == 200
     seed_order_item(db_session, group, table_a.id)
@@ -221,7 +221,7 @@ def test_split_returns_409_when_order_items_exist(
     split = client.post(
         f"/table-groups/{group}/split",
         json={"physical_table_ids": [str(table_b.id)]},
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
 
     assert split.status_code == 409
@@ -230,14 +230,14 @@ def test_split_returns_409_when_order_items_exist(
 def test_attach_table_returns_404_for_missing_group(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "API_T1")
 
     response = client.post(
         f"/table-groups/{uuid4()}/tables/add",
         json={"physical_table_id": str(table.id)},
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
 
     assert response.status_code == 404
@@ -247,7 +247,7 @@ def test_attach_table_returns_404_for_missing_group(
 def test_attach_table_returns_409_when_table_already_assigned(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table_a = seed_table(db_session, "API_T1")
     table_b = seed_table(db_session, "API_T2")
@@ -255,23 +255,23 @@ def test_attach_table_returns_409_when_table_already_assigned(
 
     group_a = client.post(
         f"/tables/{table_a.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
     group_b = client.post(
         f"/tables/{table_b.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
     attach = client.post(
         f"/table-groups/{group_a}/tables/add",
         json={"physical_table_id": str(table_c.id)},
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     assert attach.status_code == 200
 
     response = client.post(
         f"/table-groups/{group_b}/tables/add",
         json={"physical_table_id": str(table_c.id)},
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     assert response.status_code == 409
     assert response.json()["detail"] == "PhysicalTable is already assigned to a TableGroup"
@@ -280,19 +280,19 @@ def test_attach_table_returns_409_when_table_already_assigned(
 def test_remove_table_returns_409_when_table_not_attached(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table_a = seed_table(db_session, "API_T1")
     table_b = seed_table(db_session, "API_T2")
     group = client.post(
         f"/tables/{table_a.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
 
     response = client.post(
         f"/table-groups/{group}/tables/remove",
         json={"physical_table_id": str(table_b.id)},
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     assert response.status_code == 409
     assert response.json()["detail"] == "PhysicalTable is not attached to this TableGroup"
@@ -301,24 +301,24 @@ def test_remove_table_returns_409_when_table_not_attached(
 def test_switch_returns_409_when_target_already_assigned(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table_a = seed_table(db_session, "API_T1")
     table_b = seed_table(db_session, "API_T2")
     table_c = seed_table(db_session, "API_T3")
     group_a = client.post(
         f"/tables/{table_a.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
     _group_b = client.post(
         f"/tables/{table_b.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
 
     response = client.post(
         f"/table-groups/{group_a}/switch",
         json={"from_table_id": str(table_a.id), "to_table_id": str(table_b.id)},
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     assert response.status_code == 409
     assert response.json()["detail"] == "Target table is already assigned to a TableGroup"
@@ -326,7 +326,7 @@ def test_switch_returns_409_when_target_already_assigned(
     # Ensure original attachment is preserved.
     group_payload = client.get(
         f"/table-groups/{group_a}",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()
     assert str(table_a.id) in group_payload["physical_table_ids"]
     assert str(table_c.id) not in group_payload["physical_table_ids"]
@@ -335,18 +335,18 @@ def test_switch_returns_409_when_target_already_assigned(
 def test_merge_returns_409_when_source_equals_target(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "API_T1")
     group = client.post(
         f"/tables/{table.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
 
     response = client.post(
         "/table-groups/merge",
         json={"source_group_id": group, "target_group_id": group},
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     assert response.status_code == 409
     assert response.json()["detail"] == "Source and target TableGroup must be different"
@@ -355,19 +355,19 @@ def test_merge_returns_409_when_source_equals_target(
 def test_split_returns_409_for_empty_physical_table_list(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
-    admin_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "API_T1")
     group = client.post(
         f"/tables/{table.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
 
     response = client.post(
         f"/table-groups/{group}/split",
         json={"physical_table_ids": []},
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
     assert response.status_code == 409
     assert response.json()["detail"] == "Split requires at least one PhysicalTable"
@@ -375,36 +375,36 @@ def test_split_returns_409_for_empty_physical_table_list(
 
 def test_switch_validation_returns_422_for_invalid_uuid(
     client: TestClient,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     response = client.post(
         f"/table-groups/{uuid4()}/switch",
         json={"from_table_id": "not-a-uuid", "to_table_id": "also-bad"},
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     assert response.status_code == 422
 
 
 def test_merge_validation_returns_422_for_missing_field(
     client: TestClient,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     response = client.post(
         "/table-groups/merge",
         json={"source_group_id": str(uuid4())},
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     assert response.status_code == 422
 
 
 def test_split_validation_returns_422_for_wrong_body_shape(
     client: TestClient,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     response = client.post(
         f"/table-groups/{uuid4()}/split",
         json={"tables": [str(uuid4())]},
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
     assert response.status_code == 422
 
@@ -412,13 +412,13 @@ def test_split_validation_returns_422_for_wrong_body_shape(
 def test_start_service_response_schema_contract(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "API_CONTRACT_START")
 
     response = client.post(
         f"/tables/{table.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     assert response.status_code == 200
     payload = response.json()
@@ -430,15 +430,15 @@ def test_start_service_response_schema_contract(
 def test_get_group_response_schema_contract(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "API_CONTRACT_GROUP")
     group_id = client.post(
         f"/tables/{table.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
 
-    response = client.get(f"/table-groups/{group_id}", headers=waiter_session_header)
+    response = client.get(f"/table-groups/{group_id}", headers=waiter_auth_header)
     assert response.status_code == 200
     payload = response.json()
 
@@ -449,24 +449,24 @@ def test_get_group_response_schema_contract(
 def test_open_list_response_schema_contract(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
 ) -> None:
     table_a = seed_table(db_session, "API_CONTRACT_OPEN_A")
     table_b = seed_table(db_session, "API_CONTRACT_OPEN_B")
     group_a = client.post(
         f"/tables/{table_a.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
     group_b = client.post(
         f"/tables/{table_b.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
     client.post(
         f"/table-groups/{group_b}/request-bill",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
 
-    response = client.get("/table-groups/open", headers=waiter_session_header)
+    response = client.get("/table-groups/open", headers=waiter_auth_header)
     assert response.status_code == 200
     payload = response.json()
     assert isinstance(payload, list)
@@ -483,8 +483,8 @@ def test_open_list_response_schema_contract(
 def test_list_open_groups_returns_non_closed_content_in_order(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
-    admin_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     table_a = seed_table(db_session, "API_OPEN_1")
     table_b = seed_table(db_session, "API_OPEN_2")
@@ -492,29 +492,29 @@ def test_list_open_groups_returns_non_closed_content_in_order(
 
     group_open = client.post(
         f"/tables/{table_a.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
     group_bill_requested = client.post(
         f"/tables/{table_b.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
     group_closed = client.post(
         f"/tables/{table_c.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
 
     client.post(
         f"/table-groups/{group_bill_requested}/request-bill",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     client.post(
         f"/table-groups/{group_closed}/request-bill",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
-    client.post(f"/table-groups/{group_closed}/mark-paid", headers=admin_session_header)
-    client.post(f"/table-groups/{group_closed}/close", headers=admin_session_header)
+    client.post(f"/table-groups/{group_closed}/mark-paid", headers=admin_auth_header)
+    client.post(f"/table-groups/{group_closed}/close", headers=admin_auth_header)
 
-    response = client.get("/table-groups/open", headers=waiter_session_header)
+    response = client.get("/table-groups/open", headers=waiter_auth_header)
     assert response.status_code == 200
     payload = response.json()
 
@@ -534,8 +534,8 @@ def test_list_open_groups_returns_non_closed_content_in_order(
 def test_split_happy_path_returns_new_group_payload_and_updates_original(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
-    admin_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     table_a = seed_table(db_session, "API_SPLIT_1")
     table_b = seed_table(db_session, "API_SPLIT_2")
@@ -543,23 +543,23 @@ def test_split_happy_path_returns_new_group_payload_and_updates_original(
 
     source_group_id = client.post(
         f"/tables/{table_a.id}/start-service",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     ).json()["id"]
     client.post(
         f"/table-groups/{source_group_id}/tables/add",
         json={"physical_table_id": str(table_b.id)},
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     client.post(
         f"/table-groups/{source_group_id}/tables/add",
         json={"physical_table_id": str(table_c.id)},
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
 
     split_response = client.post(
         f"/table-groups/{source_group_id}/split",
         json={"physical_table_ids": [str(table_b.id), str(table_c.id)]},
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
     assert split_response.status_code == 200
     new_group = split_response.json()
@@ -572,7 +572,7 @@ def test_split_happy_path_returns_new_group_payload_and_updates_original(
 
     source_response = client.get(
         f"/table-groups/{source_group_id}",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
     assert source_response.status_code == 200
     source_group = source_response.json()

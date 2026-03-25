@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, require_actor_session
+from app.api.deps import get_current_user, get_db
 from app.schemas.physical_table import PhysicalTableResponse
 from app.schemas.table_group import TableGroupResponse
 from app.services import physical_table_service, table_group_service
@@ -26,7 +26,7 @@ def _handle_error(exc: Exception) -> None:
 @router.get(
     "",
     response_model=list[PhysicalTableResponse],
-    dependencies=[Depends(require_actor_session)],
+    dependencies=[Depends(get_current_user)],
 )
 def list_tables(db: Session = Depends(get_db)) -> list[PhysicalTableResponse]:
     rows = physical_table_service.list_tables(db)
@@ -39,7 +39,7 @@ def list_tables(db: Session = Depends(get_db)) -> list[PhysicalTableResponse]:
 @router.post(
     "/{physical_table_id}/start-service",
     response_model=TableGroupResponse,
-    dependencies=[Depends(require_actor_session)],
+    dependencies=[Depends(get_current_user)],
 )
 def start_service(physical_table_id: UUID, db: Session = Depends(get_db)) -> TableGroupResponse:
     try:

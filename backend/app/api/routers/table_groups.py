@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, require_actor_session, require_admin_session, require_admin_token
+from app.api.deps import get_current_user, get_db, require_admin_user
 from app.schemas.billing import (
     BillAdjustmentCreateRequest,
     BillAdjustmentResponse,
@@ -48,7 +48,7 @@ def _to_response(group: tuple[UUID, str, list[UUID], object, object]) -> TableGr
 @router.get(
     "/open",
     response_model=list[TableGroupResponse],
-    dependencies=[Depends(require_actor_session)],
+    dependencies=[Depends(get_current_user)],
 )
 def list_open_groups(db: Session = Depends(get_db)) -> list[TableGroupResponse]:
     groups = table_group_service.list_open_groups(db)
@@ -58,7 +58,7 @@ def list_open_groups(db: Session = Depends(get_db)) -> list[TableGroupResponse]:
 @router.get(
     "/{table_group_id}",
     response_model=TableGroupResponse,
-    dependencies=[Depends(require_actor_session)],
+    dependencies=[Depends(get_current_user)],
 )
 def get_group(table_group_id: UUID, db: Session = Depends(get_db)) -> TableGroupResponse:
     try:
@@ -72,7 +72,7 @@ def get_group(table_group_id: UUID, db: Session = Depends(get_db)) -> TableGroup
 @router.get(
     "/{table_group_id}/bill",
     response_model=BillBreakdownResponse,
-    dependencies=[Depends(require_admin_token), Depends(require_admin_session)],
+    dependencies=[Depends(require_admin_user)],
 )
 def get_bill(table_group_id: UUID, db: Session = Depends(get_db)) -> BillBreakdownResponse:
     try:
@@ -86,7 +86,7 @@ def get_bill(table_group_id: UUID, db: Session = Depends(get_db)) -> BillBreakdo
 @router.post(
     "/{table_group_id}/bill-adjustments",
     response_model=BillAdjustmentResponse,
-    dependencies=[Depends(require_admin_token), Depends(require_admin_session)],
+    dependencies=[Depends(require_admin_user)],
 )
 def create_bill_adjustment(
     table_group_id: UUID,
@@ -112,7 +112,7 @@ def create_bill_adjustment(
 
 @router.post(
     "/{table_group_id}/request-bill",
-    dependencies=[Depends(require_actor_session)],
+    dependencies=[Depends(get_current_user)],
 )
 def request_bill(table_group_id: UUID, db: Session = Depends(get_db)) -> None:
     try:
@@ -124,7 +124,7 @@ def request_bill(table_group_id: UUID, db: Session = Depends(get_db)) -> None:
 
 @router.post(
     "/{table_group_id}/mark-paid",
-    dependencies=[Depends(require_admin_token), Depends(require_admin_session)],
+    dependencies=[Depends(require_admin_user)],
 )
 def mark_paid(table_group_id: UUID, db: Session = Depends(get_db)) -> None:
     try:
@@ -136,7 +136,7 @@ def mark_paid(table_group_id: UUID, db: Session = Depends(get_db)) -> None:
 
 @router.post(
     "/{table_group_id}/close",
-    dependencies=[Depends(require_admin_token), Depends(require_admin_session)],
+    dependencies=[Depends(require_admin_user)],
 )
 def close_group(table_group_id: UUID, db: Session = Depends(get_db)) -> None:
     try:
@@ -148,7 +148,7 @@ def close_group(table_group_id: UUID, db: Session = Depends(get_db)) -> None:
 
 @router.post(
     "/{table_group_id}/tables/add",
-    dependencies=[Depends(require_actor_session)],
+    dependencies=[Depends(get_current_user)],
 )
 def add_table(
     table_group_id: UUID,
@@ -164,7 +164,7 @@ def add_table(
 
 @router.post(
     "/{table_group_id}/tables/remove",
-    dependencies=[Depends(require_actor_session)],
+    dependencies=[Depends(get_current_user)],
 )
 def remove_table(
     table_group_id: UUID,
@@ -180,7 +180,7 @@ def remove_table(
 
 @router.post(
     "/{table_group_id}/switch",
-    dependencies=[Depends(require_actor_session)],
+    dependencies=[Depends(get_current_user)],
 )
 def switch_table(
     table_group_id: UUID,
@@ -198,7 +198,7 @@ def switch_table(
 
 @router.post(
     "/merge",
-    dependencies=[Depends(require_actor_session)],
+    dependencies=[Depends(get_current_user)],
 )
 def merge_groups(request: MergeTableGroupsRequest, db: Session = Depends(get_db)) -> None:
     try:
@@ -211,7 +211,7 @@ def merge_groups(request: MergeTableGroupsRequest, db: Session = Depends(get_db)
 @router.post(
     "/{table_group_id}/split",
     response_model=TableGroupResponse,
-    dependencies=[Depends(require_admin_token), Depends(require_admin_session)],
+    dependencies=[Depends(require_admin_user)],
 )
 def split_group(
     table_group_id: UUID,

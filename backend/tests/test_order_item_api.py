@@ -62,12 +62,12 @@ def seed_active_order_item(
 def test_void_order_item_api_success_and_retry(
     client: TestClient,
     db_session: Session,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     _, order_item_id = seed_active_order_item(db_session)
 
-    first = client.post(f"/order-items/{order_item_id}/void", headers=admin_session_header)
-    second = client.post(f"/order-items/{order_item_id}/void", headers=admin_session_header)
+    first = client.post(f"/order-items/{order_item_id}/void", headers=admin_auth_header)
+    second = client.post(f"/order-items/{order_item_id}/void", headers=admin_auth_header)
 
     assert first.status_code == 204
     assert second.status_code == 204
@@ -79,13 +79,13 @@ def test_void_order_item_api_success_and_retry(
 def test_void_order_item_api_rejects_served(
     client: TestClient,
     db_session: Session,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     _, order_item_id = seed_active_order_item(db_session)
-    served = client.post(f"/order-items/{order_item_id}/mark-served", headers=admin_session_header)
+    served = client.post(f"/order-items/{order_item_id}/mark-served", headers=admin_auth_header)
     assert served.status_code == 204
 
-    response = client.post(f"/order-items/{order_item_id}/void", headers=admin_session_header)
+    response = client.post(f"/order-items/{order_item_id}/void", headers=admin_auth_header)
     assert response.status_code == 409
     assert response.json()["detail"] == "Cannot void a served OrderItem"
 
@@ -93,12 +93,12 @@ def test_void_order_item_api_rejects_served(
 def test_mark_served_api_success_and_retry(
     client: TestClient,
     db_session: Session,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     _, order_item_id = seed_active_order_item(db_session)
 
-    first = client.post(f"/order-items/{order_item_id}/mark-served", headers=admin_session_header)
-    second = client.post(f"/order-items/{order_item_id}/mark-served", headers=admin_session_header)
+    first = client.post(f"/order-items/{order_item_id}/mark-served", headers=admin_auth_header)
+    second = client.post(f"/order-items/{order_item_id}/mark-served", headers=admin_auth_header)
 
     assert first.status_code == 204
     assert second.status_code == 204
@@ -113,12 +113,12 @@ def test_mark_served_api_success_and_retry(
 def test_mark_served_api_rejects_voided(
     client: TestClient,
     db_session: Session,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     _, order_item_id = seed_active_order_item(db_session)
-    client.post(f"/order-items/{order_item_id}/void", headers=admin_session_header)
+    client.post(f"/order-items/{order_item_id}/void", headers=admin_auth_header)
 
-    response = client.post(f"/order-items/{order_item_id}/mark-served", headers=admin_session_header)
+    response = client.post(f"/order-items/{order_item_id}/mark-served", headers=admin_auth_header)
     assert response.status_code == 409
     assert response.json()["detail"] == "Cannot mark VOIDED OrderItem as served"
 
@@ -126,18 +126,18 @@ def test_mark_served_api_rejects_voided(
 def test_mark_served_api_rejects_non_open_group(
     client: TestClient,
     db_session: Session,
-    waiter_session_header: dict[str, str],
-    admin_session_header: dict[str, str],
+    waiter_auth_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     group_id, order_item_id = seed_active_order_item(db_session)
     client.post(
         f"/table-groups/{group_id}/request-bill",
-        headers=waiter_session_header,
+        headers=waiter_auth_header,
     )
 
     response = client.post(
         f"/order-items/{order_item_id}/mark-served",
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
     assert response.status_code == 400
     assert response.json()["detail"] == "TableGroup must be OPEN to mark OrderItem as served"
@@ -146,13 +146,13 @@ def test_mark_served_api_rejects_non_open_group(
 def test_reprint_api_success(
     client: TestClient,
     db_session: Session,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     _, order_item_id = seed_active_order_item(db_session)
 
     response = client.post(
         f"/order-items/{order_item_id}/reprint",
-        headers=admin_session_header,
+        headers=admin_auth_header,
     )
     assert response.status_code == 204
     duplicate_count = db_session.scalar(
@@ -166,32 +166,32 @@ def test_reprint_api_success(
 def test_reprint_api_rejects_voided(
     client: TestClient,
     db_session: Session,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     _, order_item_id = seed_active_order_item(db_session)
-    client.post(f"/order-items/{order_item_id}/void", headers=admin_session_header)
+    client.post(f"/order-items/{order_item_id}/void", headers=admin_auth_header)
 
-    response = client.post(f"/order-items/{order_item_id}/reprint", headers=admin_session_header)
+    response = client.post(f"/order-items/{order_item_id}/reprint", headers=admin_auth_header)
     assert response.status_code == 409
     assert response.json()["detail"] == "Only ACTIVE OrderItems can be reprinted"
 
 
 def test_order_item_api_not_found(
     client: TestClient,
-    admin_session_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     missing = str(uuid4())
 
-    void_resp = client.post(f"/order-items/{missing}/void", headers=admin_session_header)
-    served_resp = client.post(f"/order-items/{missing}/mark-served", headers=admin_session_header)
-    reprint_resp = client.post(f"/order-items/{missing}/reprint", headers=admin_session_header)
+    void_resp = client.post(f"/order-items/{missing}/void", headers=admin_auth_header)
+    served_resp = client.post(f"/order-items/{missing}/mark-served", headers=admin_auth_header)
+    reprint_resp = client.post(f"/order-items/{missing}/reprint", headers=admin_auth_header)
 
     assert void_resp.status_code == 404
     assert served_resp.status_code == 404
     assert reprint_resp.status_code == 404
 
 
-def test_order_item_api_requires_admin_token(client: TestClient, db_session: Session) -> None:
+def test_order_item_api_requires_admin_auth(client: TestClient, db_session: Session) -> None:
     _, order_item_id = seed_active_order_item(db_session)
     response = client.post(f"/order-items/{order_item_id}/void")
     assert response.status_code == 401
