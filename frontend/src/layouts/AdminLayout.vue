@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import { getRuntimeMode, onRuntimeModeChange, setRuntimeMode } from '@/services/runtimeMode'
 import { useTablesStore } from '@/stores/tables'
 import { useTableGroupsStore } from '@/stores/tableGroups'
+import { useSessionsStore } from '@/stores/sessions'
 
 const route = useRoute()
+const router = useRouter()
 const mode = ref(getRuntimeMode())
+const sessionsStore = useSessionsStore()
 
 onRuntimeModeChange(async (m) => {
   mode.value = m
@@ -27,16 +30,27 @@ onMounted(async () => {
 const nav = [
   { to: '/admin', label: 'Dashboard' },
   { to: '/admin/table-groups', label: 'Table & Table Group Control' },
-  { to: '/admin/orders', label: 'Order Oversight' },
-  { to: '/admin/kitchen', label: 'Kitchen & Serving' },
-  { to: '/admin/billing', label: 'Billing & Payment' },
+  { to: '/admin/orders', label: 'Billing & Orders' },
   { to: '/admin/menu', label: 'Menu Management' },
+  { to: '/admin/waiters', label: 'Waiter Management' },
 ]
 
 const title = computed(() => {
   const m = nav.find((n) => route.path === n.to)
   return m?.label ?? 'Admin'
 })
+
+async function handleLogout() {
+  try {
+    await sessionsStore.logout()
+    router.push('/login')
+  } catch (e) {
+    console.error('Logout error:', e)
+    // Force logout even if API fails
+    sessionsStore.clearSession()
+    router.push('/login')
+  }
+}
 </script>
 
 <template>
@@ -56,7 +70,7 @@ const title = computed(() => {
         >
           Mode: {{ mode }}
         </button>
-        <button type="button" class="logout">
+        <button type="button" class="logout" @click="handleLogout">
           Logout
         </button>
       </div>
@@ -64,10 +78,6 @@ const title = computed(() => {
 
     <div class="content">
       <aside class="sidebar">
-        <RouterLink class="side-item" to="/">
-          Waiter UI
-        </RouterLink>
-        <div class="divider" />
         <RouterLink
           v-for="n in nav"
           :key="n.to"
@@ -189,12 +199,6 @@ const title = computed(() => {
   color: #16a34a;
   background: #dcfce7;
   border: 1px solid #bbf7d0;
-}
-
-.divider {
-  height: 1px;
-  background: #d1fae5;
-  margin: 10px 12px;
 }
 
 .main {

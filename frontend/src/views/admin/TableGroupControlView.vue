@@ -57,6 +57,7 @@ const selectedGroup = ref<TableGroupUI | null>(null)
 
 /** Name input for new/split groups */
 const newGroupName = ref('')
+const createTableIds = ref<string[]>([])
 
 /** Currently dragged table for DnD */
 const draggedTable = ref<Table | null>(null)
@@ -125,20 +126,22 @@ function getTablesForGroup(groupId: string) {
  * Create a new table group
  */
 async function handleCreateGroup() {
-  const hasName = newGroupName.value.trim()
-  const hasTables = ungroupedTables.value.length > 0
+  const hasTables = createTableIds.value.length > 0
 
-  if (hasName && hasTables) {
-    // Get first ungrouped table
-    const tableId = ungroupedTables.value[0]?.id
+  if (hasTables) {
+    const [primaryTableId, ...otherTableIds] = createTableIds.value
 
-    if (tableId) {
-      // Create group by starting service
-      await tablesStore.startService(tableId)
+    if (!primaryTableId) return
+
+    // Create group by starting service on first selected table
+    const createdGroup = await tablesStore.startService(primaryTableId)
+    for (const tableId of otherTableIds) {
+      await tableGroupsStore.addTableToGroup(createdGroup.id, tableId)
     }
 
     // Reset form
     newGroupName.value = ''
+    createTableIds.value = []
     showCreateModal.value = false
   }
 }
@@ -151,7 +154,7 @@ async function handleSplitGroup() {
   const hasName = newGroupName.value.trim()
   const hasTables = splitTableIds.value.length > 0
 
-  if (hasGroup && hasName && hasTables) {
+  if (hasGroup && hasName && hasTables && selectedGroup.value) {
     await tableGroupsStore.splitTableGroup(
       selectedGroup.value.id,
       splitTableIds.value
@@ -300,6 +303,11 @@ function openDissolveModalForGroup(group: TableGroupUI) {
   selectedGroup.value = group
   showDissolveModal.value = true
 }
+
+function openCreateGroupModal() {
+  createTableIds.value = []
+  showCreateModal.value = true
+}
 </script>
 
 <template>
@@ -414,7 +422,7 @@ function openDissolveModalForGroup(group: TableGroupUI) {
             type="button"
             class="btn-primary"
             :disabled="ungroupedTables.length === 0"
-            @click="showCreateModal = true"
+            @click="openCreateGroupModal"
           >
             Create Table Group
           </button>
@@ -433,15 +441,19 @@ function openDissolveModalForGroup(group: TableGroupUI) {
           Create Table Group
         </h3>
         <p class="modal-message">
-          Create group with {{ ungroupedTables.length }} table(s)?
+          Select tables to include in this new table group.
         </p>
-        <div class="modal-form">
-          <input
-            v-model="newGroupName"
-            type="text"
-            placeholder="Group name"
-            class="input-field"
-          />
+        <div class="modal-form table-selection">
+          <select v-model="createTableIds" class="input-field" multiple size="8">
+            <option
+              v-for="table in ungroupedTables"
+              :key="table.id"
+              :value="table.id"
+            >
+              Table {{ table.number }}
+            </option>
+          </select>
+          <small class="modal-hint">Hold Ctrl/Cmd to select multiple tables.</small>
         </div>
         <div class="modal-actions">
           <button
@@ -454,7 +466,7 @@ function openDissolveModalForGroup(group: TableGroupUI) {
           <button
             type="button"
             class="btn btn-confirm"
-            :disabled="!newGroupName.trim()"
+            :disabled="createTableIds.length === 0"
             @click="handleCreateGroup"
           >
             Create
@@ -647,6 +659,13 @@ function openDissolveModalForGroup(group: TableGroupUI) {
   border: 1px solid var(--pos-border);
   border-radius: 6px;
   font-size: 0.9rem;
+}
+
+.modal-hint {
+  display: block;
+  margin-top: 8px;
+  color: var(--pos-text-muted);
+  font-size: 12px;
 }
 
 .table-selection {

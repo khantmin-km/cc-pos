@@ -1,47 +1,53 @@
 import { createRouter, createWebHistory } from 'vue-router'
-
-import TableSelectionView from '@/views/TableSelectionView.vue'
-import PlaceholderView from '@/views/PlaceholderView.vue'
+import { useSessionsStore } from '@/stores/sessions'
+import LoginView from '@/views/LoginView.vue'
+import WaiterLayout from '@/layouts/WaiterLayout.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
+import TableSelectionView from '@/views/TableSelectionView.vue'
+import MenuOrderView from '@/views/MenuOrderView.vue'
+import OrderItemsView from '@/views/OrderItemsView.vue'
 import AdminDashboardView from '@/views/admin/AdminDashboardView.vue'
 import TableGroupControlView from '@/views/admin/TableGroupControlView.vue'
-import BillingPaymentView from '@/views/admin/BillingPaymentView.vue'
-import AdminPlaceholderView from '@/views/admin/AdminPlaceholderView.vue'
+import MenuManagementView from '@/views/admin/MenuManagementView.vue'
+import WaiterManagementView from '@/views/admin/WaiterManagementView.vue'
+import BillingOrdersView from '@/views/admin/BillingOrdersView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', name: 'waiter', component: TableSelectionView },
-    { path: '/menu/:tableId', name: 'menu', component: PlaceholderView },
-    { path: '/orders/:tableId', name: 'orders', component: PlaceholderView },
+    { path: '/login', name: 'login', component: LoginView, meta: { requiresAuth: false } },
+    { path: '/', redirect: '/waiter' },
+    { path: '/menu/:tableId', redirect: (to) => `/waiter/menu/${to.params.tableId}` },
+    { path: '/orders/:tableId', redirect: (to) => `/waiter/orders/${to.params.tableId}` },
+    {
+      path: '/waiter',
+      component: WaiterLayout,
+      meta: { requiresAuth: true, roles: ['waiter'] },
+      children: [
+        { path: '', name: 'waiter', component: TableSelectionView, meta: { requiresAuth: true, roles: ['waiter'] } },
+        { path: 'menu/:tableId', name: 'waiter-menu', component: MenuOrderView, meta: { requiresAuth: true, roles: ['waiter'] } },
+        { path: 'orders/:tableId', name: 'waiter-orders', component: OrderItemsView, meta: { requiresAuth: true, roles: ['waiter'] } },
+      ],
+    },
     {
       path: '/admin',
       component: AdminLayout,
+      meta: { requiresAuth: true, roles: ['admin'] },
       children: [
-        { path: '', name: 'admin', component: AdminDashboardView },
-        { path: 'table-groups', name: 'admin-table-groups', component: TableGroupControlView },
-        { path: 'billing', name: 'admin-billing', component: BillingPaymentView },
-        {
-          path: 'orders',
-          name: 'admin-orders',
-          component: AdminPlaceholderView,
-          props: { title: 'Order Oversight' },
-        },
-        {
-          path: 'kitchen',
-          name: 'admin-kitchen',
-          component: AdminPlaceholderView,
-          props: { title: 'Kitchen & Serving' },
-        },
-        {
-          path: 'menu',
-          name: 'admin-menu',
-          component: AdminPlaceholderView,
-          props: { title: 'Menu Management' },
-        },
+        { path: '', name: 'admin', component: AdminDashboardView, meta: { requiresAuth: true, roles: ['admin'] } },
+        { path: 'table-groups', name: 'admin-table-groups', component: TableGroupControlView, meta: { requiresAuth: true, roles: ['admin'] } },
+        { path: 'billing', name: 'admin-billing', component: BillingOrdersView, meta: { requiresAuth: true, roles: ['admin'] } },
+        { path: 'orders', name: 'admin-orders', component: BillingOrdersView, meta: { requiresAuth: true, roles: ['admin'] } },
+        { path: 'menu', name: 'admin-menu', component: MenuManagementView, meta: { requiresAuth: true, roles: ['admin'] } },
+        { path: 'waiters', name: 'admin-waiters', component: WaiterManagementView, meta: { requiresAuth: true, roles: ['admin'] } },
       ],
     },
   ],
+})
+
+// Auth guards disabled - all routes accessible
+router.beforeEach((to, from, next) => {
+  next()
 })
 
 export default router
