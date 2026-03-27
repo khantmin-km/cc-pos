@@ -44,6 +44,13 @@ List all non-closed TableGroups.
 ### GET /table-groups/{tableGroupId}
 Fetch TableGroup state.
 
+### GET /table-groups/{tableGroupId}/order-items
+List OrderItems for a TableGroup.
+
+**Query params (optional):**
+- served: `all|served|unserved` (default `all`)
+- include_voided: `true|false` (default `false`)
+
 ### POST /table-groups/{tableGroupId}/request-bill
 Transition OPEN -> BILL_REQUESTED.
 

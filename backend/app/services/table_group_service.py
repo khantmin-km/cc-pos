@@ -186,3 +186,38 @@ def split_group(db: Session, table_group_id: UUID, new_group_table_ids: list[UUI
             physical_table_repo.attach_table(db, new_group.id, table_id)
 
         return new_group.id
+
+
+def list_order_items(
+    db: Session,
+    table_group_id: UUID,
+    *,
+    served: str,
+    include_voided: bool,
+) -> list[dict]:
+    group = table_group_repo.get_table_group(db, table_group_id)
+    if not group:
+        raise NotFoundError("TableGroup not found")
+    rows = table_group_repo.list_order_items(
+        db,
+        table_group_id,
+        include_voided=include_voided,
+        served=served,
+    )
+    return [
+        {
+            "id": row[0],
+            "order_id": row[1],
+            "physical_table_id": row[2],
+            "table_code": row[3],
+            "menu_item_id": row[4],
+            "menu_item_name": row[5],
+            "unit_price": row[6],
+            "note": row[7],
+            "status": row[8],
+            "served_at": row[9],
+            "created_at": row[10],
+            "voided_at": row[11],
+        }
+        for row in rows
+    ]
