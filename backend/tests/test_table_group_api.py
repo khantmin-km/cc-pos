@@ -175,24 +175,24 @@ def test_request_bill_returns_400_when_not_open(
 def test_merge_returns_400_when_group_not_open(
     client: TestClient,
     db_session: Session,
-    waiter_auth_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     table_a = seed_table(db_session, "API_T1")
     table_b = seed_table(db_session, "API_T2")
     group_a = client.post(
         f"/tables/{table_a.id}/start-service",
-        headers=waiter_auth_header,
+        headers=admin_auth_header,
     ).json()["id"]
     group_b = client.post(
         f"/tables/{table_b.id}/start-service",
-        headers=waiter_auth_header,
+        headers=admin_auth_header,
     ).json()["id"]
-    client.post(f"/table-groups/{group_b}/request-bill", headers=waiter_auth_header)
+    client.post(f"/table-groups/{group_b}/request-bill", headers=admin_auth_header)
 
     response = client.post(
         "/table-groups/merge",
         json={"source_group_id": group_b, "target_group_id": group_a},
-        headers=waiter_auth_header,
+        headers=admin_auth_header,
     )
 
     assert response.status_code == 400
@@ -335,18 +335,18 @@ def test_switch_returns_409_when_target_already_assigned(
 def test_merge_returns_409_when_source_equals_target(
     client: TestClient,
     db_session: Session,
-    waiter_auth_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "API_T1")
     group = client.post(
         f"/tables/{table.id}/start-service",
-        headers=waiter_auth_header,
+        headers=admin_auth_header,
     ).json()["id"]
 
     response = client.post(
         "/table-groups/merge",
         json={"source_group_id": group, "target_group_id": group},
-        headers=waiter_auth_header,
+        headers=admin_auth_header,
     )
     assert response.status_code == 409
     assert response.json()["detail"] == "Source and target TableGroup must be different"
@@ -387,14 +387,39 @@ def test_switch_validation_returns_422_for_invalid_uuid(
 
 def test_merge_validation_returns_422_for_missing_field(
     client: TestClient,
-    waiter_auth_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     response = client.post(
         "/table-groups/merge",
         json={"source_group_id": str(uuid4())},
-        headers=waiter_auth_header,
+        headers=admin_auth_header,
     )
     assert response.status_code == 422
+
+
+def test_merge_rejects_waiter(
+    client: TestClient,
+    db_session: Session,
+    waiter_auth_header: dict[str, str],
+) -> None:
+    table_a = seed_table(db_session, "API_T1")
+    table_b = seed_table(db_session, "API_T2")
+    group_a = client.post(
+        f"/tables/{table_a.id}/start-service",
+        headers=waiter_auth_header,
+    ).json()["id"]
+    group_b = client.post(
+        f"/tables/{table_b.id}/start-service",
+        headers=waiter_auth_header,
+    ).json()["id"]
+
+    response = client.post(
+        "/table-groups/merge",
+        json={"source_group_id": group_b, "target_group_id": group_a},
+        headers=waiter_auth_header,
+    )
+
+    assert response.status_code == 403
 
 
 def test_split_validation_returns_422_for_wrong_body_shape(

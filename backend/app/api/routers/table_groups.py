@@ -198,7 +198,7 @@ def switch_table(
 
 @router.post(
     "/merge",
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_admin_user)],
 )
 def merge_groups(request: MergeTableGroupsRequest, db: Session = Depends(get_db)) -> None:
     try:
