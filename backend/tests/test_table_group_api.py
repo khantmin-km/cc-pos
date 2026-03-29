@@ -131,6 +131,35 @@ def test_get_tables_returns_seeded_tables(
     assert any(row["table_code"] == "API_T1" for row in payload)
 
 
+def test_get_tables_overview_returns_group_state(
+    client: TestClient,
+    db_session: Session,
+    waiter_auth_header: dict[str, str],
+) -> None:
+    table = seed_table(db_session, "API_T_OV")
+
+    response = client.get("/tables/overview", headers=waiter_auth_header)
+
+    assert response.status_code == 200
+    payload = response.json()
+    table_row = next(row for row in payload if row["id"] == str(table.id))
+    assert table_row["current_table_group_id"] is None
+    assert table_row["current_table_group_state"] is None
+
+    group_id = client.post(
+        f"/tables/{table.id}/start-service",
+        headers=waiter_auth_header,
+    ).json()["id"]
+
+    response = client.get("/tables/overview", headers=waiter_auth_header)
+
+    assert response.status_code == 200
+    payload = response.json()
+    table_row = next(row for row in payload if row["id"] == str(table.id))
+    assert table_row["current_table_group_id"] == group_id
+    assert table_row["current_table_group_state"] == "OPEN"
+
+
 def test_start_service_returns_group_payload(
     client: TestClient,
     db_session: Session,
@@ -646,7 +675,7 @@ def test_split_happy_path_returns_new_group_payload_and_updates_original(
     assert source_group["physical_table_ids"] == [str(table_a.id)]
 
 
-def test_list_order_items_default_excludes_voided(
+def test_list_order_items_default_includes_voided(
     client: TestClient,
     db_session: Session,
     waiter_auth_header: dict[str, str],
@@ -665,7 +694,7 @@ def test_list_order_items_default_excludes_voided(
     ids = {row["id"] for row in payload}
     assert str(active_unserved.id) in ids
     assert str(active_served.id) in ids
-    assert str(voided_item.id) not in ids
+    assert str(voided_item.id) in ids
     assert "table_code" in payload[0]
 
 
@@ -699,7 +728,7 @@ def test_list_order_items_served_filters(
     assert str(active_served.id) not in unserved_ids
 
 
-def test_list_order_items_include_voided(
+def test_list_order_items_exclude_voided(
     client: TestClient,
     db_session: Session,
     waiter_auth_header: dict[str, str],
@@ -711,14 +740,14 @@ def test_list_order_items_include_voided(
     voided_item = seed_voided_order_item(db_session, group_id, table.id)
 
     response = client.get(
-        f"/table-groups/{group_id}/order-items?include_voided=true",
+        f"/table-groups/{group_id}/order-items?include_voided=false",
         headers=waiter_auth_header,
     )
 
     assert response.status_code == 200
     ids = {row["id"] for row in response.json()}
     assert str(active_item.id) in ids
-    assert str(voided_item.id) in ids
+    assert str(voided_item.id) not in ids
 
 
 def test_list_order_items_closed_group(

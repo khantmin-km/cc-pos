@@ -93,7 +93,7 @@ def get_bill(table_group_id: UUID, db: Session = Depends(get_db)) -> BillBreakdo
 def list_order_items(
     table_group_id: UUID,
     served: ServedFilter = ServedFilter.all,
-    include_voided: bool = False,
+    include_voided: bool = True,
     db: Session = Depends(get_db),
 ) -> list[TableGroupOrderItemResponse]:
     try:

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
-from app.schemas.physical_table import PhysicalTableResponse
+from app.schemas.physical_table import PhysicalTableOverviewResponse, PhysicalTableResponse
 from app.schemas.table_group import TableGroupResponse
 from app.services import physical_table_service, table_group_service
 from app.services.errors import ConflictError, InvalidStateError, NotFoundError
@@ -33,6 +33,24 @@ def list_tables(db: Session = Depends(get_db)) -> list[PhysicalTableResponse]:
     return [
         PhysicalTableResponse(id=table_id, table_code=code, current_table_group_id=group_id)
         for table_id, code, group_id in rows
+    ]
+
+
+@router.get(
+    "/overview",
+    response_model=list[PhysicalTableOverviewResponse],
+    dependencies=[Depends(get_current_user)],
+)
+def list_table_overview(db: Session = Depends(get_db)) -> list[PhysicalTableOverviewResponse]:
+    rows = physical_table_service.list_table_overview(db)
+    return [
+        PhysicalTableOverviewResponse(
+            id=table_id,
+            table_code=code,
+            current_table_group_id=group_id,
+            current_table_group_state=state,
+        )
+        for table_id, code, group_id, state in rows
     ]
 
 
