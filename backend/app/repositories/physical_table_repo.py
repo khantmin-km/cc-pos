@@ -5,7 +5,7 @@ from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import Session
 
 from app.models.physical_table import PhysicalTable
-from app.models.table_group import table_group_tables
+from app.models.table_group import TableGroup, table_group_tables
 
 
 def list_tables_with_group(db: Session) -> list[tuple[PhysicalTable, UUID | None]]:
@@ -13,6 +13,17 @@ def list_tables_with_group(db: Session) -> list[tuple[PhysicalTable, UUID | None
         select(PhysicalTable, table_group_tables.c.table_group_id)
         .select_from(PhysicalTable)
         .outerjoin(table_group_tables, PhysicalTable.id == table_group_tables.c.physical_table_id)
+        .order_by(PhysicalTable.table_code)
+    )
+    return db.execute(stmt).all()
+
+
+def list_tables_overview(db: Session) -> list[tuple[PhysicalTable, UUID | None, str | None]]:
+    stmt = (
+        select(PhysicalTable, table_group_tables.c.table_group_id, TableGroup.state)
+        .select_from(PhysicalTable)
+        .outerjoin(table_group_tables, PhysicalTable.id == table_group_tables.c.physical_table_id)
+        .outerjoin(TableGroup, table_group_tables.c.table_group_id == TableGroup.id)
         .order_by(PhysicalTable.table_code)
     )
     return db.execute(stmt).all()

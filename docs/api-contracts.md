@@ -30,6 +30,9 @@ SERVED
 ### GET /tables
 List all PhysicalTables with their current TableGroup association.
 
+### GET /tables/overview
+List all PhysicalTables with their current TableGroup association and state.
+
 ## Table Groups
 ### POST /tables/{physicalTableId}/start-service
 Start service on a FREE PhysicalTable.
@@ -43,6 +46,13 @@ List all non-closed TableGroups.
 
 ### GET /table-groups/{tableGroupId}
 Fetch TableGroup state.
+
+### GET /table-groups/{tableGroupId}/order-items
+List OrderItems for a TableGroup.
+
+**Query params (optional):**
+- served: `all|served|unserved` (default `all`)
+- include_voided: `true|false` (default `true`)
 
 ### POST /table-groups/{tableGroupId}/request-bill
 Transition OPEN -> BILL_REQUESTED.

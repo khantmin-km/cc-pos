@@ -5,7 +5,9 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.models.order_item import OrderItem
+from app.models.order_item_serving import OrderItemServing
 from app.models.order import Order
+from app.models.physical_table import PhysicalTable
 from app.models.table_group import TableGroup, table_group_tables
 
 
@@ -89,3 +91,45 @@ def count_order_items(db: Session, table_group_id: UUID) -> int:
         .where(Order.table_group_id == table_group_id)
     )
     return int(db.scalar(stmt) or 0)
+
+
+def list_order_items(
+    db: Session,
+    table_group_id: UUID,
+    *,
+    include_voided: bool,
+    served: str,
+) -> list[tuple]:
+    served_at_subquery = (
+        select(OrderItemServing.served_at)
+        .where(OrderItemServing.order_item_id == OrderItem.id)
+        .scalar_subquery()
+    )
+    stmt = (
+        select(
+            OrderItem.id,
+            OrderItem.order_id,
+            OrderItem.physical_table_id,
+            PhysicalTable.table_code,
+            OrderItem.menu_item_id,
+            OrderItem.menu_item_name_snap,
+            OrderItem.unit_price_snap,
+            OrderItem.note_snap,
+            OrderItem.status,
+            served_at_subquery,
+            OrderItem.created_at,
+            OrderItem.voided_at,
+        )
+        .select_from(OrderItem)
+        .join(Order, OrderItem.order_id == Order.id)
+        .join(PhysicalTable, OrderItem.physical_table_id == PhysicalTable.id)
+        .where(Order.table_group_id == table_group_id)
+        .order_by(OrderItem.created_at.asc(), OrderItem.id.asc())
+    )
+    if not include_voided:
+        stmt = stmt.where(OrderItem.status == "ACTIVE")
+    if served == "served":
+        stmt = stmt.where(served_at_subquery.is_not(None))
+    elif served == "unserved":
+        stmt = stmt.where(served_at_subquery.is_(None))
+    return list(db.execute(stmt).all())

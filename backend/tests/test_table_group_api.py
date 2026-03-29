@@ -1,5 +1,5 @@
 # backend/tests/test_table_group_api.py
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID, uuid4
 
@@ -11,6 +11,7 @@ from app.api.deps import get_db
 from app.main import app
 from app.models.order import Order
 from app.models.order_item import OrderItem
+from app.models.order_item_serving import OrderItemServing
 from app.models.physical_table import PhysicalTable
 
 
@@ -53,6 +54,46 @@ def seed_order_item(db: Session, table_group_id, physical_table_id) -> OrderItem
     return item
 
 
+def seed_served_order_item(db: Session, table_group_id, physical_table_id) -> OrderItem:
+    order = Order(table_group_id=table_group_id, idempotency_key=str(uuid4()), state="CONFIRMED")
+    db.add(order)
+    db.flush()
+    item = OrderItem(
+        order_id=order.id,
+        physical_table_id=physical_table_id,
+        menu_item_id=None,
+        menu_item_name_snap="API Served Item",
+        unit_price_snap=Decimal("9.50"),
+        note_snap="No onions",
+        status="ACTIVE",
+    )
+    db.add(item)
+    db.flush()
+    db.add(OrderItemServing(order_item_id=item.id, served_at=datetime.now(timezone.utc)))
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+def seed_voided_order_item(db: Session, table_group_id, physical_table_id) -> OrderItem:
+    order = Order(table_group_id=table_group_id, idempotency_key=str(uuid4()), state="CONFIRMED")
+    db.add(order)
+    db.flush()
+    item = OrderItem(
+        order_id=order.id,
+        physical_table_id=physical_table_id,
+        menu_item_id=None,
+        menu_item_name_snap="API Voided Item",
+        unit_price_snap=Decimal("5.00"),
+        status="VOIDED",
+        voided_at=datetime.now(timezone.utc),
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
 def assert_table_group_payload_contract(
     payload: dict,
     *,
@@ -88,6 +129,35 @@ def test_get_tables_returns_seeded_tables(
     payload = response.json()
     assert any(row["id"] == str(table.id) for row in payload)
     assert any(row["table_code"] == "API_T1" for row in payload)
+
+
+def test_get_tables_overview_returns_group_state(
+    client: TestClient,
+    db_session: Session,
+    waiter_auth_header: dict[str, str],
+) -> None:
+    table = seed_table(db_session, "API_T_OV")
+
+    response = client.get("/tables/overview", headers=waiter_auth_header)
+
+    assert response.status_code == 200
+    payload = response.json()
+    table_row = next(row for row in payload if row["id"] == str(table.id))
+    assert table_row["current_table_group_id"] is None
+    assert table_row["current_table_group_state"] is None
+
+    group_id = client.post(
+        f"/tables/{table.id}/start-service",
+        headers=waiter_auth_header,
+    ).json()["id"]
+
+    response = client.get("/tables/overview", headers=waiter_auth_header)
+
+    assert response.status_code == 200
+    payload = response.json()
+    table_row = next(row for row in payload if row["id"] == str(table.id))
+    assert table_row["current_table_group_id"] == group_id
+    assert table_row["current_table_group_state"] == "OPEN"
 
 
 def test_start_service_returns_group_payload(
@@ -175,24 +245,24 @@ def test_request_bill_returns_400_when_not_open(
 def test_merge_returns_400_when_group_not_open(
     client: TestClient,
     db_session: Session,
-    waiter_auth_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     table_a = seed_table(db_session, "API_T1")
     table_b = seed_table(db_session, "API_T2")
     group_a = client.post(
         f"/tables/{table_a.id}/start-service",
-        headers=waiter_auth_header,
+        headers=admin_auth_header,
     ).json()["id"]
     group_b = client.post(
         f"/tables/{table_b.id}/start-service",
-        headers=waiter_auth_header,
+        headers=admin_auth_header,
     ).json()["id"]
-    client.post(f"/table-groups/{group_b}/request-bill", headers=waiter_auth_header)
+    client.post(f"/table-groups/{group_b}/request-bill", headers=admin_auth_header)
 
     response = client.post(
         "/table-groups/merge",
         json={"source_group_id": group_b, "target_group_id": group_a},
-        headers=waiter_auth_header,
+        headers=admin_auth_header,
     )
 
     assert response.status_code == 400
@@ -335,18 +405,18 @@ def test_switch_returns_409_when_target_already_assigned(
 def test_merge_returns_409_when_source_equals_target(
     client: TestClient,
     db_session: Session,
-    waiter_auth_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     table = seed_table(db_session, "API_T1")
     group = client.post(
         f"/tables/{table.id}/start-service",
-        headers=waiter_auth_header,
+        headers=admin_auth_header,
     ).json()["id"]
 
     response = client.post(
         "/table-groups/merge",
         json={"source_group_id": group, "target_group_id": group},
-        headers=waiter_auth_header,
+        headers=admin_auth_header,
     )
     assert response.status_code == 409
     assert response.json()["detail"] == "Source and target TableGroup must be different"
@@ -387,14 +457,39 @@ def test_switch_validation_returns_422_for_invalid_uuid(
 
 def test_merge_validation_returns_422_for_missing_field(
     client: TestClient,
-    waiter_auth_header: dict[str, str],
+    admin_auth_header: dict[str, str],
 ) -> None:
     response = client.post(
         "/table-groups/merge",
         json={"source_group_id": str(uuid4())},
-        headers=waiter_auth_header,
+        headers=admin_auth_header,
     )
     assert response.status_code == 422
+
+
+def test_merge_rejects_waiter(
+    client: TestClient,
+    db_session: Session,
+    waiter_auth_header: dict[str, str],
+) -> None:
+    table_a = seed_table(db_session, "API_T1")
+    table_b = seed_table(db_session, "API_T2")
+    group_a = client.post(
+        f"/tables/{table_a.id}/start-service",
+        headers=waiter_auth_header,
+    ).json()["id"]
+    group_b = client.post(
+        f"/tables/{table_b.id}/start-service",
+        headers=waiter_auth_header,
+    ).json()["id"]
+
+    response = client.post(
+        "/table-groups/merge",
+        json={"source_group_id": group_b, "target_group_id": group_a},
+        headers=waiter_auth_header,
+    )
+
+    assert response.status_code == 403
 
 
 def test_split_validation_returns_422_for_wrong_body_shape(
@@ -578,3 +673,100 @@ def test_split_happy_path_returns_new_group_payload_and_updates_original(
     source_group = source_response.json()
     assert source_group["state"] == "OPEN"
     assert source_group["physical_table_ids"] == [str(table_a.id)]
+
+
+def test_list_order_items_default_includes_voided(
+    client: TestClient,
+    db_session: Session,
+    waiter_auth_header: dict[str, str],
+) -> None:
+    table = seed_table(db_session, "API_T1")
+    group_id = client.post(f"/tables/{table.id}/start-service", headers=waiter_auth_header).json()["id"]
+
+    active_unserved = seed_order_item(db_session, group_id, table.id)
+    active_served = seed_served_order_item(db_session, group_id, table.id)
+    voided_item = seed_voided_order_item(db_session, group_id, table.id)
+
+    response = client.get(f"/table-groups/{group_id}/order-items", headers=waiter_auth_header)
+
+    assert response.status_code == 200
+    payload = response.json()
+    ids = {row["id"] for row in payload}
+    assert str(active_unserved.id) in ids
+    assert str(active_served.id) in ids
+    assert str(voided_item.id) in ids
+    assert "table_code" in payload[0]
+
+
+def test_list_order_items_served_filters(
+    client: TestClient,
+    db_session: Session,
+    waiter_auth_header: dict[str, str],
+) -> None:
+    table = seed_table(db_session, "API_T1")
+    group_id = client.post(f"/tables/{table.id}/start-service", headers=waiter_auth_header).json()["id"]
+
+    active_unserved = seed_order_item(db_session, group_id, table.id)
+    active_served = seed_served_order_item(db_session, group_id, table.id)
+
+    served_resp = client.get(
+        f"/table-groups/{group_id}/order-items?served=served",
+        headers=waiter_auth_header,
+    )
+    unserved_resp = client.get(
+        f"/table-groups/{group_id}/order-items?served=unserved",
+        headers=waiter_auth_header,
+    )
+
+    assert served_resp.status_code == 200
+    assert unserved_resp.status_code == 200
+    served_ids = {row["id"] for row in served_resp.json()}
+    unserved_ids = {row["id"] for row in unserved_resp.json()}
+    assert str(active_served.id) in served_ids
+    assert str(active_unserved.id) not in served_ids
+    assert str(active_unserved.id) in unserved_ids
+    assert str(active_served.id) not in unserved_ids
+
+
+def test_list_order_items_exclude_voided(
+    client: TestClient,
+    db_session: Session,
+    waiter_auth_header: dict[str, str],
+) -> None:
+    table = seed_table(db_session, "API_T1")
+    group_id = client.post(f"/tables/{table.id}/start-service", headers=waiter_auth_header).json()["id"]
+
+    active_item = seed_order_item(db_session, group_id, table.id)
+    voided_item = seed_voided_order_item(db_session, group_id, table.id)
+
+    response = client.get(
+        f"/table-groups/{group_id}/order-items?include_voided=false",
+        headers=waiter_auth_header,
+    )
+
+    assert response.status_code == 200
+    ids = {row["id"] for row in response.json()}
+    assert str(active_item.id) in ids
+    assert str(voided_item.id) not in ids
+
+
+def test_list_order_items_closed_group(
+    client: TestClient,
+    db_session: Session,
+    waiter_auth_header: dict[str, str],
+    admin_auth_header: dict[str, str],
+) -> None:
+    table = seed_table(db_session, "API_T1")
+    group_id = client.post(f"/tables/{table.id}/start-service", headers=waiter_auth_header).json()["id"]
+
+    active_item = seed_order_item(db_session, group_id, table.id)
+
+    client.post(f"/table-groups/{group_id}/request-bill", headers=waiter_auth_header)
+    client.post(f"/table-groups/{group_id}/mark-paid", headers=admin_auth_header)
+    client.post(f"/table-groups/{group_id}/close", headers=admin_auth_header)
+
+    response = client.get(f"/table-groups/{group_id}/order-items", headers=waiter_auth_header)
+
+    assert response.status_code == 200
+    ids = {row["id"] for row in response.json()}
+    assert str(active_item.id) in ids

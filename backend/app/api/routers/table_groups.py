@@ -14,6 +14,8 @@ from app.schemas.table_group import (
     MergeTableGroupsRequest,
     SplitTableGroupRequest,
     SwitchTableRequest,
+    ServedFilter,
+    TableGroupOrderItemResponse,
     TableGroupResponse,
     TableGroupTableRequest,
 )
@@ -78,6 +80,30 @@ def get_bill(table_group_id: UUID, db: Session = Depends(get_db)) -> BillBreakdo
     try:
         breakdown = billing_service.get_bill_breakdown(db, table_group_id)
         return BillBreakdownResponse(**breakdown)
+    except Exception as exc:
+        _handle_error(exc)
+        raise
+
+
+@router.get(
+    "/{table_group_id}/order-items",
+    response_model=list[TableGroupOrderItemResponse],
+    dependencies=[Depends(get_current_user)],
+)
+def list_order_items(
+    table_group_id: UUID,
+    served: ServedFilter = ServedFilter.all,
+    include_voided: bool = True,
+    db: Session = Depends(get_db),
+) -> list[TableGroupOrderItemResponse]:
+    try:
+        rows = table_group_service.list_order_items(
+            db,
+            table_group_id,
+            served=served.value,
+            include_voided=include_voided,
+        )
+        return [TableGroupOrderItemResponse(**row) for row in rows]
     except Exception as exc:
         _handle_error(exc)
         raise
@@ -198,7 +224,7 @@ def switch_table(
 
 @router.post(
     "/merge",
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_admin_user)],
 )
 def merge_groups(request: MergeTableGroupsRequest, db: Session = Depends(get_db)) -> None:
     try:
