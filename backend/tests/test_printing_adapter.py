@@ -21,7 +21,13 @@ def seed_table(db: Session, table_code: str) -> PhysicalTable:
 
 
 def seed_menu_item(db: Session, name: str, price: str) -> MenuItem:
-    item = MenuItem(id=uuid4(), name=name, price=Decimal(price), status="AVAILABLE")
+    item = MenuItem(
+        id=uuid4(),
+        name=name,
+        price=Decimal(price),
+        category="Food",
+        status="AVAILABLE",
+    )
     db.add(item)
     db.commit()
     db.refresh(item)

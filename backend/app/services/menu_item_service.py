@@ -29,9 +29,15 @@ def list_menu_items(db: Session):
     return menu_item_repo.list_menu_items(db)
 
 
-def create_menu_item(db: Session, name: str, price: Decimal):
+def create_menu_item(db: Session, name: str, price: Decimal, category: str):
     with transactional(db):
-        return menu_item_repo.create_menu_item(db, name=name, price=price, status=AVAILABLE)
+        return menu_item_repo.create_menu_item(
+            db,
+            name=name,
+            price=price,
+            category=category,
+            status=AVAILABLE,
+        )
 
 
 def update_menu_item(
@@ -40,6 +46,7 @@ def update_menu_item(
     *,
     name: str | None = None,
     price: Decimal | None = None,
+    category: str | None = None,
     status: str | None = None,
 ):
     with transactional(db):
@@ -54,6 +61,8 @@ def update_menu_item(
             item.name = name
         if price is not None:
             item.price = price
+        if category is not None:
+            item.category = category
         if status is not None:
             item.status = status
 

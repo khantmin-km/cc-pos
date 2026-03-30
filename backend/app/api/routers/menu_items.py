@@ -42,7 +42,12 @@ def create_menu_item(
     db: Session = Depends(get_db),
 ) -> MenuItemResponse:
     try:
-        item = menu_item_service.create_menu_item(db, name=request.name, price=request.price)
+        item = menu_item_service.create_menu_item(
+            db,
+            name=request.name,
+            price=request.price,
+            category=request.category,
+        )
         return MenuItemResponse.model_validate(item)
     except Exception as exc:
         _handle_error(exc)
@@ -65,6 +70,7 @@ def update_menu_item(
             menu_item_id=menu_item_id,
             name=request.name,
             price=request.price,
+            category=request.category,
             status=request.status,
         )
         return MenuItemResponse.model_validate(item)
