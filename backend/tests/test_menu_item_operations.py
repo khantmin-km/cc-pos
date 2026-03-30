@@ -21,15 +21,31 @@ def seed_table(db: Session, table_code: str) -> PhysicalTable:
 
 
 def test_create_menu_item_defaults_to_available(db_session: Session) -> None:
-    item = menu_item_service.create_menu_item(db_session, name="Soup", price=Decimal("7.50"))
+    item = menu_item_service.create_menu_item(
+        db_session,
+        name="Soup",
+        price=Decimal("7.50"),
+        category="Food",
+    )
     assert item.status == "AVAILABLE"
     assert item.name == "Soup"
     assert item.price == Decimal("7.50")
+    assert item.category == "Food"
 
 
 def test_list_menu_items_returns_created_items(db_session: Session) -> None:
-    menu_item_service.create_menu_item(db_session, name="Soup", price=Decimal("7.50"))
-    menu_item_service.create_menu_item(db_session, name="Tea", price=Decimal("2.00"))
+    menu_item_service.create_menu_item(
+        db_session,
+        name="Soup",
+        price=Decimal("7.50"),
+        category="Food",
+    )
+    menu_item_service.create_menu_item(
+        db_session,
+        name="Tea",
+        price=Decimal("2.00"),
+        category="Drinks",
+    )
 
     items = menu_item_service.list_menu_items(db_session)
     names = [item.name for item in items]
@@ -38,23 +54,35 @@ def test_list_menu_items_returns_created_items(db_session: Session) -> None:
 
 
 def test_update_menu_item_fields(db_session: Session) -> None:
-    item = menu_item_service.create_menu_item(db_session, name="Soup", price=Decimal("7.50"))
+    item = menu_item_service.create_menu_item(
+        db_session,
+        name="Soup",
+        price=Decimal("7.50"),
+        category="Food",
+    )
 
     updated = menu_item_service.update_menu_item(
         db_session,
         item.id,
         name="Hot Soup",
         price=Decimal("8.00"),
+        category="Specials",
         status="UNAVAILABLE",
     )
 
     assert updated.name == "Hot Soup"
     assert updated.price == Decimal("8.00")
     assert updated.status == "UNAVAILABLE"
+    assert updated.category == "Specials"
 
 
 def test_retired_menu_item_cannot_transition_back(db_session: Session) -> None:
-    item = menu_item_service.create_menu_item(db_session, name="Soup", price=Decimal("7.50"))
+    item = menu_item_service.create_menu_item(
+        db_session,
+        name="Soup",
+        price=Decimal("7.50"),
+        category="Food",
+    )
     menu_item_service.retire_menu_item(db_session, item.id)
 
     with pytest.raises(InvalidStateError):
@@ -64,7 +92,12 @@ def test_retired_menu_item_cannot_transition_back(db_session: Session) -> None:
 def test_retire_menu_item_referenced_by_order_is_allowed(db_session: Session) -> None:
     table = seed_table(db_session, "M1")
     table_group_service.start_service(db_session, table.id)
-    item = menu_item_service.create_menu_item(db_session, name="Soup", price=Decimal("7.50"))
+    item = menu_item_service.create_menu_item(
+        db_session,
+        name="Soup",
+        price=Decimal("7.50"),
+        category="Food",
+    )
 
     order_service.confirm_order(
         db=db_session,
@@ -83,7 +116,13 @@ def test_update_missing_menu_item_raises_not_found(db_session: Session) -> None:
 
 
 def test_menu_item_model_has_terminal_status_value(db_session: Session) -> None:
-    item = MenuItem(id=uuid4(), name="Legacy", price=Decimal("1.00"), status="RETIRED")
+    item = MenuItem(
+        id=uuid4(),
+        name="Legacy",
+        price=Decimal("1.00"),
+        category="Legacy",
+        status="RETIRED",
+    )
     db_session.add(item)
     db_session.commit()
     db_session.refresh(item)
@@ -91,7 +130,12 @@ def test_menu_item_model_has_terminal_status_value(db_session: Session) -> None:
 
 
 def test_update_menu_item_image_sets_path(db_session: Session, tmp_path, monkeypatch) -> None:
-    item = menu_item_service.create_menu_item(db_session, name="Soup", price=Decimal("7.50"))
+    item = menu_item_service.create_menu_item(
+        db_session,
+        name="Soup",
+        price=Decimal("7.50"),
+        category="Food",
+    )
     menu_dir = tmp_path / "menu"
     menu_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(menu_item_service, "MENU_DIR", menu_dir)

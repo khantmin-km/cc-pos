@@ -25,8 +25,20 @@ def client(db_session: Session):
         app.dependency_overrides.clear()
 
 
-def seed_menu_item(db: Session, name: str, price: str, status: str = "AVAILABLE") -> MenuItem:
-    item = MenuItem(id=uuid4(), name=name, price=Decimal(price), status=status)
+def seed_menu_item(
+    db: Session,
+    name: str,
+    price: str,
+    status: str = "AVAILABLE",
+    category: str = "Food",
+) -> MenuItem:
+    item = MenuItem(
+        id=uuid4(),
+        name=name,
+        price=Decimal(price),
+        category=category,
+        status=status,
+    )
     db.add(item)
     db.commit()
     db.refresh(item)
@@ -34,7 +46,15 @@ def seed_menu_item(db: Session, name: str, price: str, status: str = "AVAILABLE"
 
 
 def assert_menu_item_response(payload: dict) -> None:
-    assert set(payload.keys()) == {"id", "name", "price", "status", "image_url", "created_at"}
+    assert set(payload.keys()) == {
+        "id",
+        "name",
+        "price",
+        "category",
+        "status",
+        "image_url",
+        "created_at",
+    }
     UUID(payload["id"])
     assert isinstance(payload["name"], str)
     assert payload["status"] in {"AVAILABLE", "UNAVAILABLE", "RETIRED"}
@@ -44,7 +64,7 @@ def assert_menu_item_response(payload: dict) -> None:
 def test_create_menu_item_api(client: TestClient, admin_auth_header: dict[str, str]) -> None:
     response = client.post(
         "/menu-items",
-        json={"name": "Soup", "price": "7.50"},
+        json={"name": "Soup", "price": "7.50", "category": "Food"},
         headers=admin_auth_header,
     )
     assert response.status_code == 201
@@ -52,6 +72,7 @@ def test_create_menu_item_api(client: TestClient, admin_auth_header: dict[str, s
     assert_menu_item_response(payload)
     assert payload["name"] == "Soup"
     assert payload["status"] == "AVAILABLE"
+    assert payload["category"] == "Food"
 
 
 def test_list_menu_items_api(
@@ -77,7 +98,12 @@ def test_update_menu_item_api(
 
     response = client.patch(
         f"/menu-items/{item.id}",
-        json={"name": "Hot Soup", "price": "8.00", "status": "UNAVAILABLE"},
+        json={
+            "name": "Hot Soup",
+            "price": "8.00",
+            "status": "UNAVAILABLE",
+            "category": "Specials",
+        },
         headers=admin_auth_header,
     )
     assert response.status_code == 200
@@ -86,6 +112,7 @@ def test_update_menu_item_api(
     assert payload["name"] == "Hot Soup"
     assert payload["price"] == "8.00"
     assert payload["status"] == "UNAVAILABLE"
+    assert payload["category"] == "Specials"
 
 
 def test_retire_menu_item_api(
@@ -140,7 +167,12 @@ def test_menu_item_api_validation_errors(
 ) -> None:
     bad_create = client.post(
         "/menu-items",
-        json={"name": "", "price": "0"},
+        json={"name": "", "price": "0", "category": ""},
+        headers=admin_auth_header,
+    )
+    bad_create_missing_category = client.post(
+        "/menu-items",
+        json={"name": "Soup", "price": "7.50"},
         headers=admin_auth_header,
     )
     bad_update_empty = client.patch(
@@ -155,6 +187,7 @@ def test_menu_item_api_validation_errors(
     )
 
     assert bad_create.status_code == 422
+    assert bad_create_missing_category.status_code == 422
     assert bad_update_empty.status_code == 422
     assert bad_update_status.status_code == 422
 
@@ -184,5 +217,5 @@ def test_upload_menu_item_image_api(
 
 
 def test_menu_item_api_requires_admin_auth(client: TestClient) -> None:
-    response = client.post("/menu-items", json={"name": "Soup", "price": "7.50"})
+    response = client.post("/menu-items", json={"name": "Soup", "price": "7.50", "category": "Food"})
     assert response.status_code == 401

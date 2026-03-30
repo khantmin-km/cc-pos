@@ -157,8 +157,13 @@ List menu items.
 ### POST /menu-items
 Create a menu item (admin only).
 
+**Request (conceptual):**
+- name
+- price
+- category
+
 ### PATCH /menu-items/{menuItemId}
-Update name, price, or availability (admin only).
+Update name, price, status, or category (admin only).
 
 ### POST /menu-items/{menuItemId}/retire
 Retire a menu item (admin only).

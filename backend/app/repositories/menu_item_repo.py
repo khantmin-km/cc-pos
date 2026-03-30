@@ -24,8 +24,8 @@ def get_menu_item(db: Session, menu_item_id: UUID) -> MenuItem | None:
     return db.get(MenuItem, menu_item_id)
 
 
-def create_menu_item(db: Session, name: str, price: Decimal, status: str) -> MenuItem:
-    item = MenuItem(name=name, price=price, status=status)
+def create_menu_item(db: Session, name: str, price: Decimal, category: str, status: str) -> MenuItem:
+    item = MenuItem(name=name, price=price, category=category, status=status)
     db.add(item)
     db.flush()
     return item
