@@ -112,11 +112,11 @@ def list_order_items(
 @router.post(
     "/{table_group_id}/bill-adjustments",
     response_model=BillAdjustmentResponse,
-    dependencies=[Depends(require_admin_user)],
 )
 def create_bill_adjustment(
     table_group_id: UUID,
     request: BillAdjustmentCreateRequest,
+    user=Depends(require_admin_user),
     db: Session = Depends(get_db),
 ) -> BillAdjustmentResponse:
     try:
@@ -126,7 +126,7 @@ def create_bill_adjustment(
             amount=request.amount,
             description=request.description,
             reason=request.reason,
-            created_by=request.created_by,
+            created_by=user.username,
             reference_order_item_id=request.reference_order_item_id,
             category=request.category,
         )

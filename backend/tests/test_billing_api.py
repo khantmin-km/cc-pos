@@ -90,7 +90,6 @@ def test_post_bill_adjustment_requires_bill_requested(
         json={
             "amount": "1.00",
             "description": "Manual charge",
-            "created_by": "staff_123",
         },
         headers=admin_auth_header,
     )
@@ -112,7 +111,6 @@ def test_post_bill_adjustment_rejects_negative_without_reason(
         json={
             "amount": "-1.00",
             "description": "Discount",
-            "created_by": "staff_123",
         },
         headers=admin_auth_header,
     )
@@ -136,7 +134,6 @@ def test_post_bill_adjustment_rejects_negative_subtotal(
             "amount": "-6.00",
             "description": "Waiver",
             "reason": "Mistake",
-            "created_by": "staff_123",
         },
         headers=admin_auth_header,
     )

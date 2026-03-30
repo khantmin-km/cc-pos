@@ -233,7 +233,6 @@ Request:
   "amount": "decimal",
   "description": "string",
   "reason": "string|null",
-  "created_by": "string",
   "reference_order_item_id": "uuid|null",
   "category": "string|null"
 }
