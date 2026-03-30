@@ -20,7 +20,6 @@ class BillAdjustmentCreateRequest(BaseModel):
     amount: Decimal
     description: str = Field(min_length=1)
     reason: str | None = None
-    created_by: str = Field(min_length=1, max_length=50)
     reference_order_item_id: UUID | None = None
     category: str | None = None
 
