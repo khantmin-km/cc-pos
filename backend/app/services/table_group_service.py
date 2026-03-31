@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.repositories import physical_table_repo, table_group_repo
+from app.services import audit_service
 from app.services.errors import ConflictError, InvalidStateError, NotFoundError, SplitNotAllowedError
 from app.services.transaction import transactional
 
@@ -19,7 +20,7 @@ def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def start_service(db: Session, physical_table_id: UUID) -> UUID:
+def start_service(db: Session, physical_table_id: UUID, *, actor=None) -> UUID:
     with transactional(db):
         physical_table_repo.lock_tables(db, [physical_table_id])
         table = physical_table_repo.get_table(db, physical_table_id)
@@ -32,6 +33,14 @@ def start_service(db: Session, physical_table_id: UUID) -> UUID:
 
         group = table_group_repo.create_table_group(db, state=OPEN)
         physical_table_repo.attach_table(db, group.id, physical_table_id)
+        audit_service.record_event(
+            db,
+            actor=actor,
+            event_type=audit_service.EVENT_TABLE_START_SERVICE,
+            entity_type=audit_service.ENTITY_TABLE_GROUP,
+            entity_id=group.id,
+            metadata={"physical_table_id": str(physical_table_id)},
+        )
         return group.id
 
 
@@ -52,7 +61,7 @@ def get_group(db: Session, table_group_id: UUID) -> tuple[UUID, str, list[UUID],
     return group.id, group.state, table_ids, group.opened_at, group.closed_at
 
 
-def request_bill(db: Session, table_group_id: UUID) -> None:
+def request_bill(db: Session, table_group_id: UUID, *, actor=None) -> None:
     with transactional(db):
         group = table_group_repo.get_table_group(db, table_group_id)
         if not group:
@@ -60,9 +69,17 @@ def request_bill(db: Session, table_group_id: UUID) -> None:
         if group.state != OPEN:
             raise InvalidStateError("TableGroup must be OPEN to request bill")
         table_group_repo.update_state(db, table_group_id, BILL_REQUESTED)
+        audit_service.record_event(
+            db,
+            actor=actor,
+            event_type=audit_service.EVENT_BILL_REQUESTED,
+            entity_type=audit_service.ENTITY_TABLE_GROUP,
+            entity_id=table_group_id,
+            metadata={},
+        )
 
 
-def mark_paid(db: Session, table_group_id: UUID) -> None:
+def mark_paid(db: Session, table_group_id: UUID, *, actor=None) -> None:
     with transactional(db):
         group = table_group_repo.get_table_group(db, table_group_id)
         if not group:
@@ -70,9 +87,17 @@ def mark_paid(db: Session, table_group_id: UUID) -> None:
         if group.state != BILL_REQUESTED:
             raise InvalidStateError("TableGroup must be BILL_REQUESTED to mark paid")
         table_group_repo.update_state(db, table_group_id, PAID)
+        audit_service.record_event(
+            db,
+            actor=actor,
+            event_type=audit_service.EVENT_BILL_MARKED_PAID,
+            entity_type=audit_service.ENTITY_TABLE_GROUP,
+            entity_id=table_group_id,
+            metadata={},
+        )
 
 
-def close_group(db: Session, table_group_id: UUID) -> None:
+def close_group(db: Session, table_group_id: UUID, *, actor=None) -> None:
     with transactional(db):
         group = table_group_repo.get_table_group(db, table_group_id)
         if not group:
@@ -83,6 +108,14 @@ def close_group(db: Session, table_group_id: UUID) -> None:
         table_ids = table_group_repo.list_physical_table_ids(db, table_group_id)
         table_group_repo.delete_group_tables(db, table_group_id, table_ids)
         group.closed_at = _now_utc()
+        audit_service.record_event(
+            db,
+            actor=actor,
+            event_type=audit_service.EVENT_TABLE_CLOSED,
+            entity_type=audit_service.ENTITY_TABLE_GROUP,
+            entity_id=table_group_id,
+            metadata={},
+        )
 
 
 def attach_table(db: Session, table_group_id: UUID, physical_table_id: UUID) -> None:
@@ -116,7 +149,9 @@ def detach_table(db: Session, table_group_id: UUID, physical_table_id: UUID) -> 
         physical_table_repo.detach_table(db, table_group_id, physical_table_id)
 
 
-def switch_table(db: Session, table_group_id: UUID, from_table_id: UUID, to_table_id: UUID) -> None:
+def switch_table(
+    db: Session, table_group_id: UUID, from_table_id: UUID, to_table_id: UUID, *, actor=None
+) -> None:
     with transactional(db):
         physical_table_repo.lock_tables(db, sorted([from_table_id, to_table_id]))
         group = table_group_repo.get_table_group(db, table_group_id)
@@ -135,9 +170,17 @@ def switch_table(db: Session, table_group_id: UUID, from_table_id: UUID, to_tabl
 
         physical_table_repo.detach_table(db, table_group_id, from_table_id)
         physical_table_repo.attach_table(db, table_group_id, to_table_id)
+        audit_service.record_event(
+            db,
+            actor=actor,
+            event_type=audit_service.EVENT_TABLE_SWITCHED,
+            entity_type=audit_service.ENTITY_TABLE_GROUP,
+            entity_id=table_group_id,
+            metadata={"from_table_id": str(from_table_id), "to_table_id": str(to_table_id)},
+        )
 
 
-def merge_groups(db: Session, source_group_id: UUID, target_group_id: UUID) -> None:
+def merge_groups(db: Session, source_group_id: UUID, target_group_id: UUID, *, actor=None) -> None:
     if source_group_id == target_group_id:
         raise ConflictError("Source and target TableGroup must be different")
     with transactional(db):
@@ -155,9 +198,19 @@ def merge_groups(db: Session, source_group_id: UUID, target_group_id: UUID) -> N
         table_group_repo.move_tables(db, source_group_id, target_group_id)
         table_group_repo.update_state(db, source_group_id, CLOSED)
         group_source.closed_at = _now_utc()
+        audit_service.record_event(
+            db,
+            actor=actor,
+            event_type=audit_service.EVENT_TABLE_MERGED,
+            entity_type=audit_service.ENTITY_TABLE_GROUP,
+            entity_id=target_group_id,
+            metadata={"source_group_id": str(source_group_id), "target_group_id": str(target_group_id)},
+        )
 
 
-def split_group(db: Session, table_group_id: UUID, new_group_table_ids: list[UUID]) -> UUID:
+def split_group(
+    db: Session, table_group_id: UUID, new_group_table_ids: list[UUID], *, actor=None
+) -> UUID:
     if not new_group_table_ids:
         raise ConflictError("Split requires at least one PhysicalTable")
 
@@ -185,6 +238,17 @@ def split_group(db: Session, table_group_id: UUID, new_group_table_ids: list[UUI
         for table_id in new_group_table_ids:
             physical_table_repo.attach_table(db, new_group.id, table_id)
 
+        audit_service.record_event(
+            db,
+            actor=actor,
+            event_type=audit_service.EVENT_TABLE_SPLIT,
+            entity_type=audit_service.ENTITY_TABLE_GROUP,
+            entity_id=new_group.id,
+            metadata={
+                "source_group_id": str(table_group_id),
+                "physical_table_ids": [str(table_id) for table_id in new_group_table_ids],
+            },
+        )
         return new_group.id
 
 

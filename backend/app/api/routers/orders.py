@@ -25,11 +25,11 @@ def _handle_error(exc: Exception) -> None:
 @router.post(
     "/{physical_table_id}/orders/confirm",
     response_model=OrderConfirmResponse,
-    dependencies=[Depends(get_current_user)],
 )
 def confirm_order(
     physical_table_id: UUID,
     request: OrderConfirmRequest,
+    user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> OrderConfirmResponse:
     try:
@@ -38,6 +38,7 @@ def confirm_order(
             physical_table_id=physical_table_id,
             idempotency_key=request.idempotency_key,
             items=request.items,
+            actor=user,
         )
         return OrderConfirmResponse(
             order_id=order_id,

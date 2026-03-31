@@ -1,5 +1,6 @@
 # backend/app/repositories/__init__.py
 from app.repositories import (
+    audit_event_repo,
     billing_repo,
     menu_item_repo,
     order_item_repo,
@@ -11,6 +12,7 @@ from app.repositories import (
 )
 
 __all__ = [
+    "audit_event_repo",
     "billing_repo",
     "menu_item_repo",
     "order_item_repo",

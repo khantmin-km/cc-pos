@@ -1,6 +1,7 @@
 # backend/app/models/__init__.py
 from app.models.bill_adjustment import BillAdjustment
 from app.models.bill_print_event import BillPrintEvent
+from app.models.audit_event import AuditEvent
 from app.models.menu_item import MenuItem
 from app.models.order import Order
 from app.models.order_item import OrderItem
@@ -14,6 +15,7 @@ from app.models.user_session import UserSession
 __all__ = [
     "BillAdjustment",
     "BillPrintEvent",
+    "AuditEvent",
     "MenuItem",
     "Order",
     "OrderItem",
