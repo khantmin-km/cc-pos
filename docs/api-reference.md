@@ -343,3 +343,30 @@ Response:
   "created_at": "datetime"
 }
 ```
+
+## Audit Events (admin only)
+### GET /audit-events
+Query params:
+- `event_type` (optional)
+- `entity_type` (optional)
+- `entity_id` (optional)
+- `actor_user_id` (optional)
+- `limit` (default 50, max 200)
+- `offset` (default 0)
+
+Response:
+```json
+[
+  {
+    "id": "uuid",
+    "actor_user_id": "uuid",
+    "actor_username": "string",
+    "actor_role": "ADMIN|WAITER",
+    "event_type": "string",
+    "entity_type": "string",
+    "entity_id": "uuid",
+    "metadata": {},
+    "created_at": "datetime"
+  }
+]
+```

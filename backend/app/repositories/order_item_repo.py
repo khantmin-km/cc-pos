@@ -89,3 +89,18 @@ def get_order_item_print_payload(db: Session, order_item_id: UUID) -> tuple[str,
     if not row:
         return None
     return row[0], row[1], row[2]
+
+
+def get_order_item_audit_payload(
+    db: Session, order_item_id: UUID
+) -> tuple[str, object, str] | None:
+    stmt = (
+        select(OrderItem.menu_item_name_snap, OrderItem.unit_price_snap, PhysicalTable.table_code)
+        .select_from(OrderItem)
+        .join(PhysicalTable, OrderItem.physical_table_id == PhysicalTable.id)
+        .where(OrderItem.id == order_item_id)
+    )
+    row = db.execute(stmt).one_or_none()
+    if not row:
+        return None
+    return row[0], row[1], row[2]

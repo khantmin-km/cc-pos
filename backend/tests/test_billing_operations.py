@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.physical_table import PhysicalTable
+from app.models.user import User
 from app.services import billing_service, table_group_service
 from app.services.errors import ConflictError, InvalidStateError
 
@@ -38,11 +39,20 @@ def seed_order_item(db: Session, table_group_id, physical_table_id, price: str) 
     return item
 
 
+def seed_user(db: Session, username: str = "admin") -> User:
+    user = User(id=uuid4(), username=username, pin_hash="x", role="ADMIN", active=True)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 def test_get_bill_breakdown_includes_totals_and_state(db_session: Session) -> None:
     table = seed_table(db_session, "B1")
     group_id = table_group_service.start_service(db_session, table.id)
     seed_order_item(db_session, group_id, table.id, "10.00")
     seed_order_item(db_session, group_id, table.id, "5.00")
+    admin = seed_user(db_session)
 
     table_group_service.request_bill(db_session, group_id)
     billing_service.create_bill_adjustment(
@@ -51,7 +61,7 @@ def test_get_bill_breakdown_includes_totals_and_state(db_session: Session) -> No
         amount=Decimal("-2.00"),
         description="Customer complaint discount",
         reason="Cold food",
-        created_by="staff_123",
+        actor=admin,
     )
 
     breakdown = billing_service.get_bill_breakdown(db_session, group_id)
@@ -67,6 +77,7 @@ def test_get_bill_breakdown_includes_totals_and_state(db_session: Session) -> No
 def test_create_adjustment_rejects_non_bill_requested(db_session: Session) -> None:
     table = seed_table(db_session, "B2")
     group_id = table_group_service.start_service(db_session, table.id)
+    admin = seed_user(db_session)
 
     with pytest.raises(InvalidStateError):
         billing_service.create_bill_adjustment(
@@ -75,7 +86,7 @@ def test_create_adjustment_rejects_non_bill_requested(db_session: Session) -> No
             amount=Decimal("1.00"),
             description="Manual charge",
             reason=None,
-            created_by="staff_123",
+            actor=admin,
         )
 
 
@@ -83,6 +94,7 @@ def test_create_adjustment_rejects_negative_without_reason(db_session: Session) 
     table = seed_table(db_session, "B3")
     group_id = table_group_service.start_service(db_session, table.id)
     table_group_service.request_bill(db_session, group_id)
+    admin = seed_user(db_session)
 
     with pytest.raises(ConflictError):
         billing_service.create_bill_adjustment(
@@ -91,7 +103,7 @@ def test_create_adjustment_rejects_negative_without_reason(db_session: Session) 
             amount=Decimal("-1.00"),
             description="Discount",
             reason=None,
-            created_by="staff_123",
+            actor=admin,
         )
 
 
@@ -100,6 +112,7 @@ def test_create_adjustment_rejects_negative_subtotal(db_session: Session) -> Non
     group_id = table_group_service.start_service(db_session, table.id)
     seed_order_item(db_session, group_id, table.id, "5.00")
     table_group_service.request_bill(db_session, group_id)
+    admin = seed_user(db_session)
 
     with pytest.raises(ConflictError):
         billing_service.create_bill_adjustment(
@@ -108,7 +121,7 @@ def test_create_adjustment_rejects_negative_subtotal(db_session: Session) -> Non
             amount=Decimal("-6.00"),
             description="Waiver",
             reason="Mistake",
-            created_by="staff_123",
+            actor=admin,
         )
 
 

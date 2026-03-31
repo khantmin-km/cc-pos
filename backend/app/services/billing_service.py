@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.repositories import billing_repo, table_group_repo
+from app.services import audit_service
 from app.services.errors import ConflictError, InvalidStateError, NotFoundError
 from app.services.transaction import transactional
 
@@ -48,7 +49,7 @@ def create_bill_adjustment(
     amount: Decimal,
     description: str,
     reason: str | None,
-    created_by: str,
+    actor,
     reference_order_item_id: UUID | None = None,
     category: str | None = None,
 ) -> object:
@@ -73,8 +74,22 @@ def create_bill_adjustment(
             amount=amount,
             description=description,
             reason=reason,
-            created_by=created_by,
+            created_by=actor.username,
             reference_order_item_id=reference_order_item_id,
             category=category,
+        )
+        audit_service.record_event(
+            db,
+            actor=actor,
+            event_type=audit_service.EVENT_BILL_ADJUSTMENT_CREATED,
+            entity_type=audit_service.ENTITY_BILL_ADJUSTMENT,
+            entity_id=adjustment.id,
+            metadata={
+                "table_group_id": str(table_group_id),
+                "amount": str(amount),
+                "description": description,
+                "reason": reason,
+                "category": category,
+            },
         )
         return adjustment

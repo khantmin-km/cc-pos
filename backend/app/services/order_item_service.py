@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.printing import KitchenTicketItem, print_kitchen_ticket
 from app.repositories import order_item_repo
+from app.services import audit_service
 from app.services.errors import ConflictError, InvalidStateError, NotFoundError
 from app.services.transaction import transactional
 
@@ -19,7 +20,7 @@ def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def void_order_item(db: Session, order_item_id: UUID) -> None:
+def void_order_item(db: Session, order_item_id: UUID, *, actor=None) -> None:
     with transactional(db):
         context = order_item_repo.get_order_item_operation_context(db, order_item_id, for_update=True)
         if not context:
@@ -36,9 +37,26 @@ def void_order_item(db: Session, order_item_id: UUID) -> None:
             raise ConflictError("Only ACTIVE OrderItems can be voided")
 
         order_item_repo.mark_order_item_voided_if_active(db, order_item_id, voided_at=_now_utc())
+        payload = order_item_repo.get_order_item_audit_payload(db, order_item_id)
+        metadata = {}
+        if payload:
+            name, unit_price, table_code = payload
+            metadata = {
+                "menu_item_name": name,
+                "unit_price": str(unit_price),
+                "table_code": table_code,
+            }
+        audit_service.record_event(
+            db,
+            actor=actor,
+            event_type=audit_service.EVENT_ORDER_ITEM_VOIDED,
+            entity_type=audit_service.ENTITY_ORDER_ITEM,
+            entity_id=order_item_id,
+            metadata=metadata,
+        )
 
 
-def mark_order_item_served(db: Session, order_item_id: UUID) -> None:
+def mark_order_item_served(db: Session, order_item_id: UUID, *, actor=None) -> None:
     with transactional(db):
         context = order_item_repo.get_order_item_operation_context(db, order_item_id, for_update=True)
         if not context:
@@ -53,9 +71,26 @@ def mark_order_item_served(db: Session, order_item_id: UUID) -> None:
             return
 
         order_item_repo.mark_order_item_served_once(db, order_item_id, served_at=_now_utc())
+        payload = order_item_repo.get_order_item_audit_payload(db, order_item_id)
+        metadata = {}
+        if payload:
+            name, unit_price, table_code = payload
+            metadata = {
+                "menu_item_name": name,
+                "unit_price": str(unit_price),
+                "table_code": table_code,
+            }
+        audit_service.record_event(
+            db,
+            actor=actor,
+            event_type=audit_service.EVENT_ORDER_ITEM_SERVED,
+            entity_type=audit_service.ENTITY_ORDER_ITEM,
+            entity_id=order_item_id,
+            metadata=metadata,
+        )
 
 
-def reprint_order_item(db: Session, order_item_id: UUID) -> None:
+def reprint_order_item(db: Session, order_item_id: UUID, *, actor=None) -> None:
     with transactional(db):
         context = order_item_repo.get_order_item_operation_context(db, order_item_id, for_update=True)
         if not context:
@@ -80,5 +115,22 @@ def reprint_order_item(db: Session, order_item_id: UUID) -> None:
             ]
         ):
             order_item_repo.create_duplicate_print_event(db, order_item_id, printed_at=_now_utc())
+            payload = order_item_repo.get_order_item_audit_payload(db, order_item_id)
+            metadata = {}
+            if payload:
+                name, unit_price, table_code = payload
+                metadata = {
+                    "menu_item_name": name,
+                    "unit_price": str(unit_price),
+                    "table_code": table_code,
+                }
+            audit_service.record_event(
+                db,
+                actor=actor,
+                event_type=audit_service.EVENT_ORDER_ITEM_REPRINTED,
+                entity_type=audit_service.ENTITY_ORDER_ITEM,
+                entity_id=order_item_id,
+                metadata=metadata,
+            )
         else:
             raise ConflictError("Print failed")

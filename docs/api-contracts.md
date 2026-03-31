@@ -167,3 +167,7 @@ Update name, price, status, or category (admin only).
 
 ### POST /menu-items/{menuItemId}/retire
 Retire a menu item (admin only).
+
+## Audit Events
+### GET /audit-events
+List audit events (admin only).

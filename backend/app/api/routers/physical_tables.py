@@ -57,11 +57,14 @@ def list_table_overview(db: Session = Depends(get_db)) -> list[PhysicalTableOver
 @router.post(
     "/{physical_table_id}/start-service",
     response_model=TableGroupResponse,
-    dependencies=[Depends(get_current_user)],
 )
-def start_service(physical_table_id: UUID, db: Session = Depends(get_db)) -> TableGroupResponse:
+def start_service(
+    physical_table_id: UUID,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TableGroupResponse:
     try:
-        group_id = table_group_service.start_service(db, physical_table_id)
+        group_id = table_group_service.start_service(db, physical_table_id, actor=user)
         group = table_group_service.get_group(db, group_id)
         return TableGroupResponse(
             id=group[0],

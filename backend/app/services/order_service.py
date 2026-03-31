@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.printing import KitchenTicketItem, print_kitchen_ticket
 from app.repositories import menu_item_repo, order_repo, physical_table_repo, table_group_repo
 from app.schemas.order import OrderConfirmItemRequest
+from app.services import audit_service
 from app.services.errors import ConflictError, InvalidStateError, NotFoundError
 from app.services.transaction import transactional
 
@@ -56,6 +57,8 @@ def confirm_order(
     physical_table_id: UUID,
     idempotency_key: str,
     items: list[OrderConfirmItemRequest],
+    *,
+    actor=None,
 ) -> tuple[UUID, UUID, list[UUID]]:
     existing = _load_existing_confirmation(db, idempotency_key)
     if existing:
@@ -125,6 +128,20 @@ def confirm_order(
                 )
 
             stable_item_ids = order_repo.list_order_item_ids(db, order.id)
+            audit_service.record_event(
+                db,
+                actor=actor,
+                event_type=audit_service.EVENT_ORDER_CONFIRMED,
+                entity_type=audit_service.ENTITY_ORDER,
+                entity_id=order.id,
+                metadata={
+                    "table_group_id": str(table_group_id),
+                    "physical_table_id": str(physical_table_id),
+                    "table_code": table.table_code,
+                    "order_item_count": len(stable_item_ids),
+                    "idempotency_key": idempotency_key,
+                },
+            )
             return order.id, table_group_id, stable_item_ids
     except IntegrityError:
         db.rollback()

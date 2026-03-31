@@ -126,7 +126,7 @@ def create_bill_adjustment(
             amount=request.amount,
             description=request.description,
             reason=request.reason,
-            created_by=user.username,
+            actor=user,
             reference_order_item_id=request.reference_order_item_id,
             category=request.category,
         )
@@ -138,11 +138,14 @@ def create_bill_adjustment(
 
 @router.post(
     "/{table_group_id}/request-bill",
-    dependencies=[Depends(get_current_user)],
 )
-def request_bill(table_group_id: UUID, db: Session = Depends(get_db)) -> None:
+def request_bill(
+    table_group_id: UUID,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
     try:
-        table_group_service.request_bill(db, table_group_id)
+        table_group_service.request_bill(db, table_group_id, actor=user)
     except Exception as exc:
         _handle_error(exc)
         raise
@@ -150,11 +153,14 @@ def request_bill(table_group_id: UUID, db: Session = Depends(get_db)) -> None:
 
 @router.post(
     "/{table_group_id}/mark-paid",
-    dependencies=[Depends(require_admin_user)],
 )
-def mark_paid(table_group_id: UUID, db: Session = Depends(get_db)) -> None:
+def mark_paid(
+    table_group_id: UUID,
+    user=Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> None:
     try:
-        table_group_service.mark_paid(db, table_group_id)
+        table_group_service.mark_paid(db, table_group_id, actor=user)
     except Exception as exc:
         _handle_error(exc)
         raise
@@ -162,11 +168,14 @@ def mark_paid(table_group_id: UUID, db: Session = Depends(get_db)) -> None:
 
 @router.post(
     "/{table_group_id}/close",
-    dependencies=[Depends(require_admin_user)],
 )
-def close_group(table_group_id: UUID, db: Session = Depends(get_db)) -> None:
+def close_group(
+    table_group_id: UUID,
+    user=Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> None:
     try:
-        table_group_service.close_group(db, table_group_id)
+        table_group_service.close_group(db, table_group_id, actor=user)
     except Exception as exc:
         _handle_error(exc)
         raise
@@ -206,16 +215,16 @@ def remove_table(
 
 @router.post(
     "/{table_group_id}/switch",
-    dependencies=[Depends(get_current_user)],
 )
 def switch_table(
     table_group_id: UUID,
     request: SwitchTableRequest,
+    user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> None:
     try:
         table_group_service.switch_table(
-            db, table_group_id, request.from_table_id, request.to_table_id
+            db, table_group_id, request.from_table_id, request.to_table_id, actor=user
         )
     except Exception as exc:
         _handle_error(exc)
@@ -224,11 +233,19 @@ def switch_table(
 
 @router.post(
     "/merge",
-    dependencies=[Depends(require_admin_user)],
 )
-def merge_groups(request: MergeTableGroupsRequest, db: Session = Depends(get_db)) -> None:
+def merge_groups(
+    request: MergeTableGroupsRequest,
+    user=Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> None:
     try:
-        table_group_service.merge_groups(db, request.source_group_id, request.target_group_id)
+        table_group_service.merge_groups(
+            db,
+            request.source_group_id,
+            request.target_group_id,
+            actor=user,
+        )
     except Exception as exc:
         _handle_error(exc)
         raise
@@ -237,15 +254,20 @@ def merge_groups(request: MergeTableGroupsRequest, db: Session = Depends(get_db)
 @router.post(
     "/{table_group_id}/split",
     response_model=TableGroupResponse,
-    dependencies=[Depends(require_admin_user)],
 )
 def split_group(
     table_group_id: UUID,
     request: SplitTableGroupRequest,
+    user=Depends(require_admin_user),
     db: Session = Depends(get_db),
 ) -> TableGroupResponse:
     try:
-        new_group_id = table_group_service.split_group(db, table_group_id, request.physical_table_ids)
+        new_group_id = table_group_service.split_group(
+            db,
+            table_group_id,
+            request.physical_table_ids,
+            actor=user,
+        )
         group = table_group_service.get_group(db, new_group_id)
         return _to_response(group)
     except Exception as exc:

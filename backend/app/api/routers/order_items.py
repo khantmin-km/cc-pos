@@ -24,11 +24,14 @@ def _handle_error(exc: Exception) -> None:
 @router.post(
     "/{order_item_id}/void",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_admin_user)],
 )
-def void_order_item(order_item_id: UUID, db: Session = Depends(get_db)) -> Response:
+def void_order_item(
+    order_item_id: UUID,
+    user=Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> Response:
     try:
-        order_item_service.void_order_item(db, order_item_id)
+        order_item_service.void_order_item(db, order_item_id, actor=user)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     except Exception as exc:
         _handle_error(exc)
@@ -38,11 +41,14 @@ def void_order_item(order_item_id: UUID, db: Session = Depends(get_db)) -> Respo
 @router.post(
     "/{order_item_id}/mark-served",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_admin_user)],
 )
-def mark_order_item_served(order_item_id: UUID, db: Session = Depends(get_db)) -> Response:
+def mark_order_item_served(
+    order_item_id: UUID,
+    user=Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> Response:
     try:
-        order_item_service.mark_order_item_served(db, order_item_id)
+        order_item_service.mark_order_item_served(db, order_item_id, actor=user)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     except Exception as exc:
         _handle_error(exc)
@@ -52,11 +58,14 @@ def mark_order_item_served(order_item_id: UUID, db: Session = Depends(get_db)) -
 @router.post(
     "/{order_item_id}/reprint",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_admin_user)],
 )
-def reprint_order_item(order_item_id: UUID, db: Session = Depends(get_db)) -> Response:
+def reprint_order_item(
+    order_item_id: UUID,
+    user=Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> Response:
     try:
-        order_item_service.reprint_order_item(db, order_item_id)
+        order_item_service.reprint_order_item(db, order_item_id, actor=user)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     except Exception as exc:
         _handle_error(exc)
