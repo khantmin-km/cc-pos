@@ -2,15 +2,24 @@
 /**
  * Table Selection View
  * 
- * Main entry point for the waiter UI.
- * Displays available tables and allows navigation
- * to menu or order management.
+ * Main entry point for waiter UI.
+ * Displays available and occupied tables with color coding:
+ * - Available: Green
+ * - Occupied: Red
+ * 
+ * Waiter can:
+ * - Click available table → Start Service → Order Menu
+ * - Click occupied table → View Orders → Order More / Request Bill
+ * - Switch tables between occupied tables
+ * - Attach multiple tables together
+ * - Request receipt from occupied tables
  */
 
 // Vue core imports
 import {
   ref,
   onMounted,
+  computed,
 } from 'vue'
 
 // Router imports
@@ -19,15 +28,14 @@ import { useRouter } from 'vue-router'
 // Store imports
 import { useTablesStore } from '@/stores/tables'
 import { useTableGroupsStore } from '@/stores/tableGroups'
-import { getRuntimeMode, onRuntimeModeChange, setRuntimeMode } from '@/services/runtimeMode'
 
 // Type imports
 import type { Table } from '@/types/pos'
 
 // Component imports
-import TableCard from '@/components/TableCard.vue'
-import TableAreaTabs from '@/components/TableAreaTabs.vue'
-import ReservedTableModal from '@/components/ReservedTableModal.vue'
+import EnhancedTableCard from '@/components/EnhancedTableCard.vue'
+import SwitchTableModal from '@/components/SwitchTableModal.vue'
+import AttachTablesModal from '@/components/AttachTablesModal.vue'
 
 // --------------------------------
 // Setup
@@ -39,25 +47,114 @@ const router = useRouter()
 // Initialize stores
 const tablesStore = useTablesStore()
 const tableGroupsStore = useTableGroupsStore()
-const mode = ref(getRuntimeMode())
 
-onRuntimeModeChange(async (m) => {
-  mode.value = m
-  await Promise.allSettled([
-    tablesStore.fetchTables(),
-    tableGroupsStore.fetchOpenGroups(),
-  ])
-})
+// Modal states
+const showSwitchModal = ref(false)
+const showAttachModal = ref(false)
+
+// Computed properties
+const availableTables = computed(() => 
+  tablesStore.tables.filter(table => table.status === 'available')
+)
+
+const occupiedTables = computed(() => 
+  tablesStore.tables.filter(table => table.status === 'occupied')
+)
 
 // --------------------------------
-// State
+// Event Handlers
 // --------------------------------
 
-/** Show reserved table warning modal */
-const showReservedModal = ref(false)
+/**
+ * Handle table card click
+ * 
+ * @param table - Clicked table object
+ */
+function handleTableClick(table: Table) {
+  if (table.status === 'available') {
+    // Navigate to menu for ordering
+    router.push(`/waiter/menu/${table.id}`)
+  } else if (table.status === 'occupied') {
+    // Navigate to order management
+    router.push(`/waiter/orders/${table.id}`)
+  }
+}
 
-/** Table number for reserved modal */
-const reservedTableNumber = ref(0)
+/**
+ * Handle receipt request for occupied table
+ * 
+ * @param tableId - Table ID
+ */
+function handleReceiptRequest(tableId: string) {
+  // Find the table group for this table
+  const table = tablesStore.tables.find(t => t.id === tableId)
+  if (table?.tableGroupId) {
+    // Request bill for the table group
+    tableGroupsStore.requestBill(table.tableGroupId)
+  }
+}
+
+/**
+ * Handle attach tables modal
+ */
+function handleAttachTables() {
+  showAttachModal.value = true
+}
+
+/**
+ * Handle switch tables modal
+ */
+function handleSwitchTables() {
+  showSwitchModal.value = true
+}
+
+/**
+ * Handle attach tables from modal
+ */
+function handleAttach(payload: { baseTableId: string; attachTableIds: string[] }) {
+  // Add tables to the group
+  payload.attachTableIds.forEach(tableId => {
+    tableGroupsStore.addTableToGroup(payload.baseTableId, tableId)
+  })
+}
+
+/**
+ * Handle switch tables from modal
+ */
+function handleSwitch(payload: { fromTableId: string; toTableId: string }) {
+  // Find the table group for the source table
+  const sourceTable = tablesStore.tables.find(t => t.id === payload.fromTableId)
+  if (sourceTable?.tableGroupId) {
+    // Switch tables within the group
+    tableGroupsStore.switchTable(sourceTable.tableGroupId, payload.fromTableId, payload.toTableId)
+  }
+}
+
+/**
+ * Handle bill request
+ */
+function handleBillRequest() {
+  // This would open a modal to select which table to request bill for
+  alert('Bill request feature - select occupied table to request bill')
+}
+
+/**
+ * Handle logout
+ */
+function handleLogout() {
+  // Clear session and redirect to login
+  localStorage.removeItem('currentSession')
+  router.push('/login')
+}
+
+/**
+ * Get table items count
+ */
+function getTableItemsCount(table: Table) {
+  // This would get actual items count from orders
+  // For now, return a mock count
+  return Math.floor(Math.random() * 10) + 1
+}
 
 // --------------------------------
 // Lifecycle
@@ -74,63 +171,39 @@ onMounted(async () => {
   // Fetch open table groups
   await tableGroupsStore.fetchOpenGroups()
 })
-
-// --------------------------------
-// Event Handlers
-// --------------------------------
-
-/**
- * Handle table card click
- * 
- * @param table - Clicked table object
- */
-function handleTableClick(table: Table) {
-  if (table.status === 'available') {
-    // Navigate to menu for ordering
-    router.push(`/waiter/menu/${table.id}`)
-
-  } else if (table.status === 'reserved') {
-    // Show reserved warning
-    reservedTableNumber.value = table.number
-    showReservedModal.value = true
-
-  } else if (table.status === 'occupied') {
-    // Navigate to order management
-    router.push(`/waiter/orders/${table.id}`)
-  }
-}
 </script>
 
 <template>
   <div class="table-selection">
     <!-- Header -->
     <div class="header">
-      <h1 class="title">
-        KAUNG KAUNG
-      </h1>
-      <span class="subtitle">
-        WAITER UI
-      </span>
-      <button
-        type="button"
-        class="mode"
-        :data-mode="mode"
-        @click="setRuntimeMode(mode === 'demo' ? 'live' : 'demo')"
-      >
-        Mode: {{ mode }}
+      <div class="header-left">
+        <h1 class="title">KAUNG KAUNG</h1>
+        <span class="subtitle">WAITER UI</span>
+      </div>
+      <div class="header-right">
+        <div class="waiter-info">
+          <span class="waiter-label">Waiter:</span>
+          <span class="waiter-name">John Doe</span>
+        </div>
+        <button class="logout-btn" @click="handleLogout">
+          Logout
+        </button>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+      <button class="action-btn attach-btn" @click="handleAttachTables">
+        📎 Attach Tables
+      </button>
+      <button class="action-btn switch-btn" @click="handleSwitchTables">
+        🔄 Switch Tables
+      </button>
+      <button class="action-btn bill-btn" @click="handleBillRequest">
+        💳 Bill Request
       </button>
     </div>
-
-    <!-- Banner -->
-    <div class="banner">
-      TABLE SELECTION
-    </div>
-
-    <!-- Area Filter Tabs -->
-    <TableAreaTabs
-      :current-area="tablesStore.currentArea"
-      @select="tablesStore.setCurrentArea"
-    />
 
     <!-- Table Grid -->
     <div v-if="tablesStore.loading" class="state">
@@ -138,7 +211,7 @@ function handleTableClick(table: Table) {
     </div>
 
     <div v-else-if="tablesStore.error" class="state error">
-      <div class="err-title">Couldn’t load tables</div>
+      <div class="err-title">Couldn't load tables</div>
       <div class="err-msg">{{ tablesStore.error }}</div>
       <button
         type="button"
@@ -147,32 +220,35 @@ function handleTableClick(table: Table) {
       >
         Retry
       </button>
-      <p class="hint">
-        If the backend is failing, switch to <b>demo</b> mode.
-      </p>
     </div>
 
     <div v-else-if="tablesStore.tablesByArea.length === 0" class="state">
       No tables found.
-      <div class="hint">
-        Switch to <b>demo</b> mode to see UI working with sample data.
-      </div>
     </div>
 
     <div v-else class="table-grid">
-      <TableCard
+      <EnhancedTableCard
         v-for="table in tablesStore.tablesByArea"
         :key="table.id"
         :table="table"
         @click="handleTableClick"
+        @receipt-request="handleReceiptRequest"
       />
     </div>
 
-    <!-- Reserved Modal -->
-    <ReservedTableModal
-      v-if="showReservedModal"
-      :table-number="reservedTableNumber"
-      @close="showReservedModal = false"
+    <!-- Modals -->
+    <AttachTablesModal
+      v-if="showAttachModal"
+      :tables="tablesStore.tables"
+      @close="showAttachModal = false"
+      @attach="handleAttach"
+    />
+
+    <SwitchTableModal
+      v-if="showSwitchModal"
+      :tables="tablesStore.tables"
+      @close="showSwitchModal = false"
+      @switch="handleSwitch"
     />
   </div>
 </template>
@@ -202,8 +278,11 @@ function handleTableClick(table: Table) {
   color: var(--pos-text-muted);
 }
 
-.mode {
+.header-actions {
   margin-left: auto;
+}
+
+.logout-btn {
   border: 1px solid var(--pos-border);
   background: white;
   border-radius: 999px;
@@ -212,20 +291,49 @@ function handleTableClick(table: Table) {
   cursor: pointer;
 }
 
-.mode[data-mode='demo'] {
-  border-color: #f59e0b;
-  color: #92400e;
-  background: #fffbeb;
-}
-
-.banner {
+.logout-btn:hover {
   background: var(--pos-primary);
   color: white;
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 1rem;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
   margin-bottom: 1rem;
+  justify-content: center;
+}
+
+.action-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.attach-btn {
+  background: #3b82f6;
+  color: white;
+}
+
+.attach-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.switch-btn {
+  background: #10b981;
+  color: white;
+}
+
+.switch-btn:hover {
+  background: #059669;
+  transform: translateY(-1px);
 }
 
 .table-grid {
@@ -269,11 +377,5 @@ function handleTableClick(table: Table) {
   border-radius: 10px;
   font-weight: 900;
   cursor: pointer;
-}
-
-.hint {
-  margin-top: 0.6rem;
-  color: var(--pos-text-muted);
-  font-weight: 600;
 }
 </style>

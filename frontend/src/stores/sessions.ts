@@ -52,16 +52,18 @@ export const useSessionsStore = defineStore('sessions', () => {
    * Create a new session (login)
    * 
    * @param actorType - 'waiter' or 'admin'
-   * @param actorId - Waiter/admin ID
+   * @param username - Username (waiter1, waiter2, etc. for waiter; 'admin' for admin)
+   * @param pin - PIN/password for the user
    */
-  async function login(actorType: UserRole, actorId: string) {
+  async function login(actorType: UserRole, username: string, pin: string) {
     loading.value = true
     error.value = null
 
     try {
       const session = await sessionsApi.create({
         actorType,
-        actorId,
+        username,
+        pin,
       })
 
       currentSession.value = session
@@ -89,7 +91,14 @@ export const useSessionsStore = defineStore('sessions', () => {
     error.value = null
 
     try {
-      await sessionsApi.end(currentSession.value.id)
+      // Attempt to end session on backend (non-critical if endpoint doesn't exist)
+      try {
+        await sessionsApi.end(currentSession.value.id)
+      } catch (e) {
+        console.warn('Session end failed (non-critical):', e)
+      }
+      
+      // Always clear local session regardless of API call result
       currentSession.value = null
       localStorage.removeItem('currentSession')
     } catch (e) {

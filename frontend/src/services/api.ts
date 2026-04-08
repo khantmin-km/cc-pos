@@ -24,16 +24,37 @@ async function parseResponse<T>(response: Response): Promise<T> {
 }
 
 async function request<T>(
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   endpoint: string,
   body?: unknown
 ): Promise<T> {
   let response: Response
 
   try {
+    // Initialize headers
+    const headers: Record<string, string> = {}
+    
+    // Add Content-Type if there's a body
+    if (body) {
+      headers['Content-Type'] = 'application/json'
+    }
+    
+    // Add Authorization token if available
+    try {
+      const sessionStr = localStorage.getItem('currentSession')
+      if (sessionStr) {
+        const session = JSON.parse(sessionStr)
+        if (session && session.token) {
+          headers['Authorization'] = `Bearer ${session.token}`
+        }
+      }
+    } catch (e) {
+      // Ignore session read errors
+    }
+
     response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method,
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      headers,
       body: body ? JSON.stringify(body) : undefined,
     })
   } catch (e) {
@@ -48,6 +69,19 @@ async function request<T>(
     } catch {
       text = undefined
     }
+
+    // Only log unexpected errors (not 404s for optional endpoints)
+    if (response.status !== 404 && response.status !== 403) {
+      console.error(`[API ERROR] ${response.status} on ${method} ${endpoint}:`, text)
+    }
+
+    // If 401 Unauthorized and not already on login page, clear session and redirect
+    if (response.status === 401 && !window.location.pathname.includes('/login')) {
+      console.warn('[API] Session expired, redirecting to login')
+      localStorage.removeItem('currentSession')
+      window.location.href = '/login'
+    }
+
     throw new ApiError(response.status, `HTTP ${response.status}`, text)
   }
 
@@ -60,5 +94,7 @@ export const api = {
     request<T>('POST', endpoint, body),
   put: async <T>(endpoint: string, body: unknown): Promise<T> =>
     request<T>('PUT', endpoint, body),
+  patch: async <T>(endpoint: string, body: unknown): Promise<T> =>
+    request<T>('PATCH', endpoint, body),
   delete: async <T>(endpoint: string): Promise<T> => request<T>('DELETE', endpoint),
 }

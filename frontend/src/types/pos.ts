@@ -90,7 +90,7 @@ export interface TableGroup {
 
 /**
  * Table - Frontend UI Type
- * 
+ *
  * Used for displaying tables in the UI.
  * Derived from PhysicalTable with computed fields.
  */
@@ -101,6 +101,9 @@ export interface Table {
   /** Table number (extracted from table_code) */
   number: number
 
+  /** Original table code from backend (e.g., "T1", "Table3") */
+  tableCode?: string
+
   /** Current status */
   status: TableStatus
 
@@ -109,6 +112,12 @@ export interface Table {
 
   /** Group ID if table is in a group */
   tableGroupId?: string
+
+  /** Alias for tableGroupId (used by some views) */
+  groupId?: string
+
+  /** Order items for this table (used by some admin views) */
+  orderItems?: any[]
 }
 
 /**
@@ -310,8 +319,11 @@ export interface SessionCreateRequest {
   /** Actor type */
   actorType: UserRole
 
-  /** Actor ID or selection */
-  actorId: string
+  /** Username for login */
+  username: string
+
+  /** PIN/password for login */
+  pin: string
 }
 
 // ==========================================

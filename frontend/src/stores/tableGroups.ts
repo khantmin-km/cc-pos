@@ -254,7 +254,12 @@ export const useTableGroupsStore = defineStore(
           ? e.message
           : 'Failed to close group'
         error.value = msg
-        console.error(msg, e)
+        // Don't log expected errors (400, 403, 404)
+        const statusMsg = e instanceof Error && e.message.includes('HTTP ')
+        const isExpectedError = statusMsg && (e.message.includes('400') || e.message.includes('403') || e.message.includes('404'))
+        if (!isExpectedError) {
+          console.error(msg, e)
+        }
         throw e
       }
     }
@@ -457,6 +462,14 @@ export const useTableGroupsStore = defineStore(
       )
     }
 
+    /** Alias for tableGroups (used by views) */
+    const openGroups = computed(() => tableGroups.value)
+
+    /** Alias for addTableToGroup (used by views) */
+    const attachTable = async (groupId: string, tableId: string) => {
+      return addTableToGroup(groupId, tableId)
+    }
+
     // --------------------------------
     // Return Store Interface
     // --------------------------------
@@ -473,6 +486,7 @@ export const useTableGroupsStore = defineStore(
       ungroupedTables,
       getTableGroupById,
       getTableGroupByTableId,
+      openGroups,
 
       // API Actions
       fetchOpenGroups,
@@ -485,6 +499,7 @@ export const useTableGroupsStore = defineStore(
       switchTable,
       mergeTableGroups,
       splitTableGroup,
+      attachTable,
 
       // Legacy Actions
       createTableGroup,

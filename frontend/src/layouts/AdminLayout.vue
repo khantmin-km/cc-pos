@@ -11,17 +11,35 @@ const route = useRoute()
 const router = useRouter()
 const mode = ref(getRuntimeMode())
 const sessionsStore = useSessionsStore()
+const tablesStore = useTablesStore()
+const groupsStore = useTableGroupsStore()
+const modeError = ref<string | null>(null)
 
 onRuntimeModeChange(async (m) => {
   mode.value = m
-  await Promise.allSettled([
-    tablesStore.fetchTables(),
-    groupsStore.fetchOpenGroups(),
-  ])
+  modeError.value = null
+  
+  try {
+    const results = await Promise.allSettled([
+      tablesStore.fetchTables(),
+      groupsStore.fetchOpenGroups(),
+    ])
+    
+    // Check for errors
+    const errors = results
+      .map((r, i) => r.status === 'rejected' ? `${i === 0 ? 'Tables' : 'Groups'}: ${r.reason}` : null)
+      .filter(Boolean)
+    
+    if (errors.length > 0) {
+      modeError.value = errors.join('; ')
+      console.error('Mode switch errors:', modeError.value)
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Failed to switch mode'
+    modeError.value = msg
+    console.error('Mode switch error:', e)
+  }
 })
-
-const tablesStore = useTablesStore()
-const groupsStore = useTableGroupsStore()
 
 onMounted(async () => {
   await Promise.allSettled([tablesStore.fetchTables(), groupsStore.fetchOpenGroups()])
@@ -39,6 +57,23 @@ const title = computed(() => {
   const m = nav.find((n) => route.path === n.to)
   return m?.label ?? 'Admin'
 })
+
+async function handleModeSwitch() {
+  const newMode = mode.value === 'demo' ? 'live' : 'demo'
+  
+  // Check if switching to live mode
+  if (newMode === 'live') {
+    // Check if we have a valid backend token
+    const session = sessionsStore.currentSession
+    if (!session || !session.token) {
+      modeError.value = '⚠️ You need to log in with a valid backend account to use live mode. Current session is demo-only.'
+      console.warn('Cannot switch to live mode: no valid backend token')
+      return
+    }
+  }
+  
+  setRuntimeMode(newMode)
+}
 
 async function handleLogout() {
   try {
@@ -66,7 +101,7 @@ async function handleLogout() {
           type="button"
           class="mode"
           :data-mode="mode"
-          @click="setRuntimeMode(mode === 'demo' ? 'live' : 'demo')"
+          @click="handleModeSwitch"
         >
           Mode: {{ mode }}
         </button>
@@ -75,6 +110,10 @@ async function handleLogout() {
         </button>
       </div>
     </header>
+
+    <div v-if="modeError" class="error-banner">
+      <p><strong>Mode Switch Error:</strong> {{ modeError }}</p>
+    </div>
 
     <div class="content">
       <aside class="sidebar">
@@ -220,6 +259,14 @@ async function handleLogout() {
   margin: 6px 0 0;
   color: #6b7280;
   font-weight: 600;
+}
+
+.error-banner {
+  background: #fee2e2;
+  border-bottom: 1px solid #fecaca;
+  padding: 12px 16px;
+  color: #7f1d1d;
+  font-size: 14px;
 }
 
 @media (max-width: 900px) {

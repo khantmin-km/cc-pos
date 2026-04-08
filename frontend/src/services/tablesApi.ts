@@ -1,35 +1,30 @@
 /**
- * Tables API Module
+ * Tables API Module - Live Mode Only
  * 
  * Provides methods to interact with the backend tables and table groups API.
  * All methods return promises that resolve to typed data.
  */
 
-import { api, ApiError } from './api'
-import {
-  demoTableGroupsApi,
-  demoTablesApi,
-  demoMenuItemsApi,
-  demoWaitersApi,
-  demoSessionsApi,
-  demoOrdersApi,
-  demoOrderItemsApi,
-  demoBillingApi,
-} from './demoBackend'
-import { getRuntimeMode, setRuntimeMode } from './runtimeMode'
+import { api } from './api'
 
 // Import type definitions
 import type {
   PhysicalTable,
   TableGroup,
+  MenuItem,
   MenuItemCreateRequest,
   MenuItemUpdateRequest,
+  OrderConfirmRequest,
+  OrderConfirmResponse,
+  Waiter,
   WaiterCreateRequest,
   WaiterUpdateRequest,
   SessionCreateRequest,
-  OrderConfirmRequest,
-  OrderConfirmResponse,
+  ActorSession,
+  BillBreakdown,
+  BillAdjustment,
   BillAdjustmentCreateRequest,
+  OrderItem,
 } from '@/types/pos'
 
 // ==========================================
@@ -48,11 +43,7 @@ export const tablesApi = {
    * @returns Array of PhysicalTable objects
    */
   list: (): Promise<PhysicalTable[]> => {
-    if (getRuntimeMode() === 'demo') return demoTablesApi.list()
-    return api.get<PhysicalTable[]>('/tables').catch((e) => {
-      if (e instanceof ApiError) setRuntimeMode('demo')
-      return demoTablesApi.list()
-    })
+    return api.get<PhysicalTable[]>('/tables')
   },
 
   /**
@@ -67,13 +58,7 @@ export const tablesApi = {
   startService: (
     id: string
   ): Promise<TableGroup> => {
-    if (getRuntimeMode() === 'demo') return demoTablesApi.startService(id)
-    return api
-      .post<TableGroup>(`/tables/${id}/start-service`)
-      .catch((e) => {
-        if (e instanceof ApiError) setRuntimeMode('demo')
-        return demoTablesApi.startService(id)
-      })
+    return api.post<TableGroup>(`/tables/${id}/start-service`)
   },
 }
 
@@ -93,11 +78,7 @@ export const tableGroupsApi = {
    * @returns Array of TableGroup objects
    */
   listOpen: (): Promise<TableGroup[]> => {
-    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.listOpen()
-    return api.get<TableGroup[]>('/table-groups/open').catch((e) => {
-      if (e instanceof ApiError) setRuntimeMode('demo')
-      return demoTableGroupsApi.listOpen()
-    })
+    return api.get<TableGroup[]>('/table-groups/open')
   },
 
   /**
@@ -109,11 +90,7 @@ export const tableGroupsApi = {
    * @returns TableGroup object
    */
   get: (id: string): Promise<TableGroup> => {
-    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.get(id)
-    return api.get<TableGroup>(`/table-groups/${id}`).catch((e) => {
-      if (e instanceof ApiError) setRuntimeMode('demo')
-      return demoTableGroupsApi.get(id)
-    })
+    return api.get<TableGroup>(`/table-groups/${id}`)
   },
 
   /**
@@ -125,11 +102,7 @@ export const tableGroupsApi = {
    * @param id - Table group ID
    */
   requestBill: (id: string): Promise<void> => {
-    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.requestBill(id)
-    return api.post<void>(`/table-groups/${id}/request-bill`).catch((e) => {
-      if (e instanceof ApiError) setRuntimeMode('demo')
-      return demoTableGroupsApi.requestBill(id)
-    })
+    return api.post<void>(`/table-groups/${id}/request-bill`)
   },
 
   /**
@@ -141,11 +114,7 @@ export const tableGroupsApi = {
    * @param id - Table group ID
    */
   markPaid: (id: string): Promise<void> => {
-    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.markPaid(id)
-    return api.post<void>(`/table-groups/${id}/mark-paid`).catch((e) => {
-      if (e instanceof ApiError) setRuntimeMode('demo')
-      return demoTableGroupsApi.markPaid(id)
-    })
+    return api.post<void>(`/table-groups/${id}/mark-paid`)
   },
 
   /**
@@ -157,11 +126,7 @@ export const tableGroupsApi = {
    * @param id - Table group ID
    */
   close: (id: string): Promise<void> => {
-    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.close(id)
-    return api.post<void>(`/table-groups/${id}/close`).catch((e) => {
-      if (e instanceof ApiError) setRuntimeMode('demo')
-      return demoTableGroupsApi.close(id)
-    })
+    return api.post<void>(`/table-groups/${id}/close`)
   },
 
   /**
@@ -176,14 +141,9 @@ export const tableGroupsApi = {
     groupId: string,
     physicalTableId: string
   ): Promise<void> => {
-    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.addTable(groupId, physicalTableId)
     return api
       .post<void>(`/table-groups/${groupId}/tables/add`, {
         physical_table_id: physicalTableId,
-      })
-      .catch((e) => {
-        if (e instanceof ApiError) setRuntimeMode('demo')
-        return demoTableGroupsApi.addTable(groupId, physicalTableId)
       })
   },
 
@@ -199,14 +159,9 @@ export const tableGroupsApi = {
     groupId: string,
     physicalTableId: string
   ): Promise<void> => {
-    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.removeTable(groupId, physicalTableId)
     return api
       .post<void>(`/table-groups/${groupId}/tables/remove`, {
         physical_table_id: physicalTableId,
-      })
-      .catch((e) => {
-        if (e instanceof ApiError) setRuntimeMode('demo')
-        return demoTableGroupsApi.removeTable(groupId, physicalTableId)
       })
   },
 
@@ -224,17 +179,10 @@ export const tableGroupsApi = {
     fromTableId: string,
     toTableId: string
   ): Promise<void> => {
-    if (getRuntimeMode() === 'demo') {
-      return demoTableGroupsApi.switchTable(groupId, fromTableId, toTableId)
-    }
     return api
       .post<void>(`/table-groups/${groupId}/switch`, {
         from_table_id: fromTableId,
         to_table_id: toTableId,
-      })
-      .catch((e) => {
-        if (e instanceof ApiError) setRuntimeMode('demo')
-        return demoTableGroupsApi.switchTable(groupId, fromTableId, toTableId)
       })
   },
 
@@ -251,15 +199,10 @@ export const tableGroupsApi = {
     sourceId: string,
     targetId: string
   ): Promise<void> => {
-    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.merge(sourceId, targetId)
     return api
       .post<void>('/table-groups/merge', {
         source_group_id: sourceId,
         target_group_id: targetId,
-      })
-      .catch((e) => {
-        if (e instanceof ApiError) setRuntimeMode('demo')
-        return demoTableGroupsApi.merge(sourceId, targetId)
       })
   },
 
@@ -277,14 +220,9 @@ export const tableGroupsApi = {
     id: string,
     physicalTableIds: string[]
   ): Promise<TableGroup> => {
-    if (getRuntimeMode() === 'demo') return demoTableGroupsApi.split(id, physicalTableIds)
     return api
       .post<TableGroup>(`/table-groups/${id}/split`, {
         physical_table_ids: physicalTableIds,
-      })
-      .catch((e) => {
-        if (e instanceof ApiError) setRuntimeMode('demo')
-        return demoTableGroupsApi.split(id, physicalTableIds)
       })
   },
 }
@@ -292,23 +230,6 @@ export const tableGroupsApi = {
 // ==========================================
 // Orders API
 // ==========================================
-
-import type {
-  Order,
-  OrderConfirmRequest,
-  OrderConfirmResponse,
-  MenuItem,
-  Waiter,
-  ActorSession,
-  SessionCreateRequest,
-  BillBreakdown,
-  BillAdjustment,
-  BillAdjustmentCreateRequest,
-  MenuItemCreateRequest,
-  MenuItemUpdateRequest,
-  WaiterCreateRequest,
-  WaiterUpdateRequest,
-} from '@/types/pos'
 
 /**
  * API methods for orders
@@ -327,7 +248,7 @@ export const ordersApi = {
     tableId: string,
     request: OrderConfirmRequest
   ): Promise<OrderConfirmResponse> => {
-    return demoOrdersApi.confirm(tableId, request)
+    return api.post<OrderConfirmResponse>(`/tables/${tableId}/orders/confirm`, request)
   },
 }
 
@@ -339,26 +260,24 @@ export const ordersApi = {
  * API methods for order items
  */
 export const orderItemsApi = {
-  /**
-   * Void/cancel an order item
-   * 
-   * POST /order-items/{id}/void
-   * 
-   * @param id - Order item ID
-   */
-  void: (id: string): Promise<void> => {
-    return demoOrderItemsApi.void(id)
-  },
+  getByTable: (tableId: string): Promise<OrderItem[]> =>
+    api.get<OrderItem[]>(`/order-items/table/${tableId}`),
+
+  getByTableGroup: (tableGroupId: string): Promise<OrderItem[]> =>
+    api.get<OrderItem[]>(`/table-groups/${tableGroupId}/order-items`),
+
+  void: (id: string): Promise<void> =>
+    api.post<void>(`/order-items/${id}/void`),
 
   /**
-   * Mark an order item as served
+   * Mark order item as served
    * 
    * POST /order-items/{id}/mark-served
    * 
    * @param id - Order item ID
    */
   markServed: (id: string): Promise<void> => {
-    return demoOrderItemsApi.markServed(id)
+    return api.post<void>(`/order-items/${id}/mark-served`)
   },
 
   /**
@@ -369,7 +288,7 @@ export const orderItemsApi = {
    * @param id - Order item ID
    */
   reprint: (id: string): Promise<void> => {
-    return demoOrderItemsApi.reprint(id)
+    return api.post<void>(`/order-items/${id}/reprint`)
   },
 }
 
@@ -389,7 +308,7 @@ export const menuItemsApi = {
    * @returns Array of MenuItem objects
    */
   list: (): Promise<MenuItem[]> => {
-    return demoMenuItemsApi.list()
+    return api.get<MenuItem[]>('/menu-items')
   },
 
   /**
@@ -401,14 +320,14 @@ export const menuItemsApi = {
    * @returns Created MenuItem
    */
   create: (request: MenuItemCreateRequest): Promise<MenuItem> => {
-    return demoMenuItemsApi.create(request.name, request.price, request.category)
+    return api.post<MenuItem>('/menu-items', request)
   },
 
   /**
    * Update a menu item
-   * 
+   *
    * PATCH /menu-items/{id}
-   * 
+   *
    * @param id - Menu item ID
    * @param request - Update request
    * @returns Updated MenuItem
@@ -417,7 +336,7 @@ export const menuItemsApi = {
     id: string,
     request: MenuItemUpdateRequest
   ): Promise<MenuItem> => {
-    return demoMenuItemsApi.update(id, request.name, request.price, request.category)
+    return api.patch<MenuItem>(`/menu-items/${id}`, request)
   },
 
   /**
@@ -428,7 +347,7 @@ export const menuItemsApi = {
    * @param id - Menu item ID
    */
   retire: (id: string): Promise<void> => {
-    return demoMenuItemsApi.retire(id)
+    return api.post<void>(`/menu-items/${id}/retire`)
   },
 
   /**
@@ -440,15 +359,9 @@ export const menuItemsApi = {
    * @param file - Image file
    */
   uploadImage: (id: string, file: File): Promise<MenuItem> => {
-    if (getRuntimeMode() === 'demo') return demoMenuItemsApi.uploadImage(id, file)
     const formData = new FormData()
     formData.append('file', file)
-    return api
-      .post<MenuItem>(`/menu-items/${id}/image`, formData as unknown)
-      .catch((e) => {
-        if (e instanceof ApiError) setRuntimeMode('demo')
-        return demoMenuItemsApi.uploadImage(id, file)
-      })
+    return api.post<MenuItem>(`/menu-items/${id}/image`, formData as unknown)
   },
 }
 
@@ -463,13 +376,36 @@ export const sessionsApi = {
   /**
    * Create a new session (login)
    * 
-   * POST /sessions
+   * POST /auth/login
    * 
-   * @param request - Session creation request
-   * @returns Created ActorSession
+   * @param request - Login request with username and pin
+   * @returns Created ActorSession with token
    */
-  create: (request: SessionCreateRequest): Promise<ActorSession> => {
-    return demoSessionsApi.create(request.actorType, request.actorId)
+  create: async (request: {
+    actorType: 'waiter' | 'admin'
+    username: string
+    pin: string
+  }): Promise<ActorSession> => {
+    const response = await api.post<{
+      token: string
+      user_id: string
+      username: string
+      role: string
+      expires_at: string
+    }>('/auth/login', {
+      username: request.username,
+      pin: request.pin,
+    })
+
+    // Map backend response to ActorSession
+    return {
+      id: response.user_id,
+      actorType: response.role as any,
+      actorId: request.username,
+      actorName: response.username,
+      startedAt: new Date().toISOString(),
+      token: response.token,
+    }
   },
 
   /**
@@ -480,7 +416,7 @@ export const sessionsApi = {
    * @param id - Session ID
    */
   end: (id: string): Promise<void> => {
-    return demoSessionsApi.end(id)
+    return api.post<void>(`/sessions/${id}/end`)
   },
 }
 
@@ -501,7 +437,7 @@ export const waitersApi = {
    * @returns Array of Waiter objects
    */
   list: (includeInactive: boolean = false): Promise<Waiter[]> => {
-    return demoWaitersApi.list()
+    return api.get<Waiter[]>('/waiters')
   },
 
   /**
@@ -513,20 +449,20 @@ export const waitersApi = {
    * @returns Created Waiter
    */
   create: (request: WaiterCreateRequest): Promise<Waiter> => {
-    return demoWaitersApi.create(request.name)
+    return api.post<Waiter>('/waiters', request)
   },
 
   /**
    * Update a waiter
-   * 
+   *
    * PATCH /waiters/{id}
-   * 
+   *
    * @param id - Waiter ID
    * @param request - Update request
    * @returns Updated Waiter
    */
   update: (id: string, request: WaiterUpdateRequest): Promise<Waiter> => {
-    return demoWaitersApi.update(id, request.name, request.active)
+    return api.patch<Waiter>(`/waiters/${id}`, request)
   },
 }
 
@@ -537,32 +473,43 @@ export const waitersApi = {
 /**
  * API methods for bill management
  */
-export const billApi = {
+export const billingApi = {
   /**
    * Get bill breakdown for a table group
    * 
    * GET /table-groups/{id}/bill
    * 
    * @param id - Table group ID
-   * @returns Bill breakdown
+   * @returns BillBreakdown object
    */
-  getBillBreakdown: (id: string): Promise<BillBreakdown> => {
-    return demoBillingApi.getBillBreakdown(id)
+  getBill: (id: string): Promise<BillBreakdown> => {
+    return api.get<BillBreakdown>(`/table-groups/${id}/bill`)
   },
 
   /**
-   * Create a bill adjustment
-   * 
+   * Add adjustment to a bill
+   *
    * POST /table-groups/{id}/bill-adjustments
-   * 
+   *
    * @param id - Table group ID
    * @param request - Adjustment creation request
    * @returns Created BillAdjustment
    */
-  createAdjustment: (
+  addAdjustment: (
     id: string,
     request: BillAdjustmentCreateRequest
   ): Promise<BillAdjustment> => {
-    return demoBillingApi.createAdjustment(id, request.description, request.amount)
+    return api.post<BillAdjustment>(`/table-groups/${id}/bill-adjustments`, request)
+  },
+
+  /**
+   * Print bill receipt
+   * 
+   * POST /table-groups/{id}/print
+   * 
+   * @param id - Table group ID
+   */
+  printBill: (id: string): Promise<void> => {
+    return api.post<void>(`/table-groups/${id}/print`)
   },
 }
