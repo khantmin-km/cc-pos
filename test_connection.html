@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Connection Test</title>
+</head>
+<body>
+    <h1>Frontend-Backend Connection Test</h1>
+    <div id="status">Testing connection...</div>
+    
+    <script>
+        async function testConnection() {
+            const statusDiv = document.getElementById('status');
+            
+            try {
+                // Test backend health
+                const healthResponse = await fetch('http://localhost:8000/health');
+                if (healthResponse.ok) {
+                    statusDiv.innerHTML += '<br>✅ Backend Health: OK';
+                } else {
+                    statusDiv.innerHTML += '<br>❌ Backend Health: Failed';
+                }
+                
+                // Test authentication
+                const authResponse = await fetch('http://localhost:8000/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'admin', pin: '1234' })
+                });
+                
+                if (authResponse.ok) {
+                    const authData = await authResponse.json();
+                    statusDiv.innerHTML += '<br>✅ Authentication: OK';
+                    
+                    // Test API with token
+                    const tablesResponse = await fetch('http://localhost:8000/tables', {
+                        headers: { 'Authorization': `Bearer ${authData.token}` }
+                    });
+                    
+                    if (tablesResponse.ok) {
+                        const tables = await tablesResponse.json();
+                        statusDiv.innerHTML += `<br>✅ Tables API: OK (${tables.length} tables)`;
+                        statusDiv.innerHTML += '<br><br><strong>🎉 FRONTEND-BACKEND-DATABASE CONNECTED!</strong>';
+                    } else {
+                        statusDiv.innerHTML += '<br>❌ Tables API: Failed';
+                    }
+                } else {
+                    statusDiv.innerHTML += '<br>❌ Authentication: Failed';
+                    const errorText = await authResponse.text();
+                    statusDiv.innerHTML += `<br>Error: ${errorText}`;
+                }
+                
+            } catch (error) {
+                statusDiv.innerHTML += `<br>❌ Connection Error: ${error.message}`;
+            }
+        }
+        
+        testConnection();
+    </script>
+</body>
+</html>
