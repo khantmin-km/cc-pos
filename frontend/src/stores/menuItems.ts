@@ -36,6 +36,25 @@ export const useMenuItemsStore = defineStore('menuItems', () => {
     return items.value.filter((item) => item.available)
   })
 
+  /** Main items only (excluding add-ons) */
+  const mainItems = computed(() => {
+    return items.value.filter((item) => item.available && item.category !== 'Add-on')
+  })
+
+  /** All add-on items */
+  const addonItems = computed(() => {
+    return items.value.filter((item) => item.available && item.category === 'Add-on')
+  })
+
+  /** Get add-ons for a specific parent item */
+  const getAddonsForItem = (parentId: string): MenuItem[] => {
+    // If parentId matches, return specific add-ons; otherwise return all add-ons
+    const specificAddons = items.value.filter((item) => item.parentId === parentId && item.available)
+    if (specificAddons.length > 0) return specificAddons
+    // Return all add-ons if no specific parent relationship exists
+    return addonItems.value
+  }
+
   /** Items grouped by category */
   const itemsByCategory = computed(() => {
     const grouped: { [key: string]: MenuItem[] } = {}
@@ -171,8 +190,11 @@ export const useMenuItemsStore = defineStore('menuItems', () => {
 
     // Getters
     availableItems,
+    mainItems,
+    addonItems,
     itemsByCategory,
     getItem,
+    getAddonsForItem,
 
     // Actions
     fetchMenuItems,

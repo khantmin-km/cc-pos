@@ -307,8 +307,18 @@ export const menuItemsApi = {
    * 
    * @returns Array of MenuItem objects
    */
-  list: (): Promise<MenuItem[]> => {
-    return api.get<MenuItem[]>('/menu-items')
+  list: async (): Promise<MenuItem[]> => {
+    const raw = await api.get<any[]>('/menu-items')
+    return raw.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      price: Number(item.price),
+      category: item.category,
+      image: item.image_url || undefined,
+      available: item.status === 'AVAILABLE',
+      isAddon: item.category === 'Add-on' || item.is_addon === true,
+      parentId: item.parent_id || undefined,
+    }))
   },
 
   /**
@@ -319,8 +329,18 @@ export const menuItemsApi = {
    * @param request - Menu item creation request
    * @returns Created MenuItem
    */
-  create: (request: MenuItemCreateRequest): Promise<MenuItem> => {
-    return api.post<MenuItem>('/menu-items', request)
+  create: async (request: MenuItemCreateRequest): Promise<MenuItem> => {
+    const raw = await api.post<any>('/menu-items', request)
+    return {
+      id: raw.id,
+      name: raw.name,
+      price: Number(raw.price),
+      category: raw.category,
+      image: raw.image_url || undefined,
+      available: raw.status === 'AVAILABLE',
+      isAddon: raw.category === 'Add-on' || raw.is_addon === true,
+      parentId: raw.parent_id || undefined,
+    }
   },
 
   /**
@@ -332,11 +352,21 @@ export const menuItemsApi = {
    * @param request - Update request
    * @returns Updated MenuItem
    */
-  update: (
+  update: async (
     id: string,
     request: MenuItemUpdateRequest
   ): Promise<MenuItem> => {
-    return api.patch<MenuItem>(`/menu-items/${id}`, request)
+    const raw = await api.patch<any>(`/menu-items/${id}`, request)
+    return {
+      id: raw.id,
+      name: raw.name,
+      price: Number(raw.price),
+      category: raw.category,
+      image: raw.image_url || undefined,
+      available: raw.status === 'AVAILABLE',
+      isAddon: raw.category === 'Add-on' || raw.is_addon === true,
+      parentId: raw.parent_id || undefined,
+    }
   },
 
   /**
@@ -358,10 +388,20 @@ export const menuItemsApi = {
    * @param id - Menu item ID
    * @param file - Image file
    */
-  uploadImage: (id: string, file: File): Promise<MenuItem> => {
+  uploadImage: async (id: string, file: File): Promise<MenuItem> => {
     const formData = new FormData()
     formData.append('file', file)
-    return api.post<MenuItem>(`/menu-items/${id}/image`, formData as unknown)
+    const raw = await api.post<any>(`/menu-items/${id}/image`, formData as unknown)
+    return {
+      id: raw.id,
+      name: raw.name,
+      price: Number(raw.price),
+      category: raw.category,
+      image: raw.image_url || undefined,
+      available: raw.status === 'AVAILABLE',
+      isAddon: raw.category === 'Add-on' || raw.is_addon === true,
+      parentId: raw.parent_id || undefined,
+    }
   },
 }
 

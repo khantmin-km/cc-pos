@@ -19,7 +19,7 @@ import type { MenuItem, MenuItemCreateRequest, MenuItemUpdateRequest } from '@/t
 // --------------------------------
 
 const menuStore = useMenuItemsStore()
-const CATEGORY_OPTIONS = ['Main Dish', 'Side Dish', 'Appetizer', 'Beverages']
+const CATEGORY_OPTIONS = ['Main Dish', 'Side Dish', 'Appetizer', 'Beverages', 'Mookata', 'Add-on']
 
 // --------------------------------
 // State
@@ -327,7 +327,7 @@ function handleEditImageChange(event: Event) {
               class="item-photo"
             />
             <h4>{{ item.name }}</h4>
-            <p>{{ item.category }} | {{ item.price.toFixed(2) }}</p>
+            <p>{{ item.category }} | ${{ Number(item.price).toFixed(2) }}</p>
             <p v-if="!item.available" class="status-retired">Retired</p>
           </div>
           <div class="actions">

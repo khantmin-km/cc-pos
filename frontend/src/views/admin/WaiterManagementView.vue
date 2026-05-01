@@ -53,11 +53,7 @@ const displayWaiters = computed(() => {
 // --------------------------------
 
 onMounted(async () => {
-  try {
-    await waitersStore.fetchWaiters(showInactive.value)
-  } catch (e) {
-    error.value = 'Failed to load waiters'
-  }
+  error.value = '⚠️ Waiter management is not available. The backend waiters endpoint is not configured.'
 })
 
 // --------------------------------
@@ -65,25 +61,7 @@ onMounted(async () => {
 // --------------------------------
 
 async function handleCreateWaiter() {
-  if (!newWaiter.value.name.trim()) {
-    error.value = 'Please enter waiter name'
-    return
-  }
-
-  loading.value = true
-  error.value = null
-
-  try {
-    await waitersStore.createWaiter(newWaiter.value)
-    successMsg.value = 'Waiter created successfully'
-    showCreateForm.value = false
-    newWaiter.value = { name: '' }
-    setTimeout(() => (successMsg.value = null), 3000)
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to create waiter'
-  } finally {
-    loading.value = false
-  }
+  error.value = '⚠️ Waiter management is not available. The backend waiters endpoint is not configured.'
 }
 
 function handleEditWaiter(waiter: Waiter) {
@@ -95,50 +73,15 @@ function handleEditWaiter(waiter: Waiter) {
 }
 
 async function handleSaveEdit() {
-  if (!editingWaiterId.value) return
-
-  loading.value = true
-  error.value = null
-
-  try {
-    await waitersStore.updateWaiter(editingWaiterId.value, editForm.value)
-    successMsg.value = 'Waiter updated successfully'
-    editingWaiterId.value = null
-    setTimeout(() => (successMsg.value = null), 3000)
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to update waiter'
-  } finally {
-    loading.value = false
-  }
+  error.value = '⚠️ Waiter management is not available. The backend waiters endpoint is not configured.'
 }
 
 async function handleToggleActive(waiterId: string, currentStatus: boolean) {
-  loading.value = true
-  error.value = null
-
-  try {
-    await waitersStore.updateWaiter(waiterId, { active: !currentStatus })
-    successMsg.value = 'Waiter status updated'
-    setTimeout(() => (successMsg.value = null), 3000)
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to update waiter'
-  } finally {
-    loading.value = false
-  }
+  error.value = '⚠️ Waiter management is not available. The backend waiters endpoint is not configured.'
 }
 
 async function handleShowInactiveChange() {
-  loading.value = true
-  error.value = null
-
-  try {
-    await waitersStore.fetchWaiters(!showInactive.value)
-    showInactive.value = !showInactive.value
-  } catch (e) {
-    error.value = 'Failed to load waiters'
-  } finally {
-    loading.value = false
-  }
+  error.value = '⚠️ Waiter management is not available. The backend waiters endpoint is not configured.'
 }
 
 function cancelEdit() {

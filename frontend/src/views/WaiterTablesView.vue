@@ -141,14 +141,14 @@ async function executeSwitchTables() {
   const fromTable = getTableById(switchFromTable.value)
   const toTable = getTableById(switchToTable.value)
 
-  if (!fromTable?.current_table_group_id) {
+  if (!fromTable?.tableGroupId) {
     alert('Source table has no active table group')
     return
   }
 
   try {
     await tableGroupsStore.switchTable(
-      fromTable.current_table_group_id,
+      fromTable.tableGroupId,
       switchFromTable.value,
       switchToTable.value
     )
@@ -244,6 +244,31 @@ function showTableDetails(table: any) {
   router.push(`/waiter/orders/${table.id}`)
 }
 
+/**
+ * Go to menu for occupied table
+ */
+function goToMenu(table: any) {
+  router.push(`/waiter/menu/${table.id}`)
+}
+
+/**
+ * Request bill for occupied table
+ */
+async function requestBill(table: any) {
+  if (!table.tableGroupId) {
+    alert('No active group for this table')
+    return
+  }
+  
+  try {
+    await tableGroupsStore.requestBill(table.tableGroupId)
+    alert(`Bill requested for ${table.tableCode}`)
+  } catch (error) {
+    console.error('Failed to request bill:', error)
+    alert('Failed to request bill')
+  }
+}
+
 </script>
 
 <template>
@@ -258,11 +283,16 @@ function showTableDetails(table: any) {
       <h2>TABLE SELECTION</h2>
     </div>
 
-    <!-- Category tabs -->
-    <div class="category-tabs">
-      <button class="tab-btn active">IN-door</button>
-      <button class="tab-btn">Out-door</button>
-      <button class="tab-btn">Garden</button>
+    <!-- Status Legend -->
+    <div class="status-legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background-color: #10b981;"></div>
+        <span>Available</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background-color: #ef4444;"></div>
+        <span>Occupied</span>
+      </div>
     </div>
 
     <!-- Action Buttons -->
@@ -282,10 +312,29 @@ function showTableDetails(table: any) {
           v-for="table in tables"
           :key="table.id"
           class="table-card"
-          @click="handleTableClick(table)"
+          :class="{ occupied: table.status === 'occupied', available: table.status === 'available' }"
         >
-          <div class="table-name">{{ table.tableCode }}</div>
-          <div class="status-pill" :style="{ backgroundColor: getTableStatusColor(table) }"></div>
+          <div class="table-header" @click="handleTableClick(table)">
+            <div class="table-name">{{ table.tableCode }}</div>
+            <div class="status-pill" :style="{ backgroundColor: getTableStatusColor(table) }"></div>
+          </div>
+          
+          <!-- Action buttons for available tables -->
+          <div v-if="table.status === 'available'" class="table-actions">
+            <button class="action-btn-small start-service-btn" @click.stop="handleStartService(table)">
+              ▶️ Start Service
+            </button>
+          </div>
+          
+          <!-- Action buttons for occupied tables -->
+          <div v-if="table.status === 'occupied'" class="table-actions">
+            <button class="action-btn-small menu-btn" @click.stop="goToMenu(table)">
+              📝 Order
+            </button>
+            <button class="action-btn-small bill-btn" @click.stop="requestBill(table)">
+              🧾 Bill
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -471,9 +520,9 @@ function showTableDetails(table: any) {
   letter-spacing: 0.5px;
 }
 
-.category-tabs {
+.status-legend {
   display: flex;
-  gap: 12px;
+  gap: 24px;
   padding: 15px;
   background: white;
   border-bottom: 1px solid #e5e7eb;
@@ -481,27 +530,19 @@ function showTableDetails(table: any) {
   flex-wrap: wrap;
 }
 
-.tab-btn {
-  padding: 10px 24px;
-  border: 2px solid #c6c6c6;
-  background: white;
-  color: #6b7280;
-  font-weight: 600;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: all 0.2s;
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
+  font-weight: 600;
+  color: #374151;
 }
 
-.tab-btn:hover {
-  border-color: #10b981;
-  color: #10b981;
-}
-
-.tab-btn.active {
-  background: #10b981;
-  color: white;
-  border-color: #10b981;
+.legend-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
 }
 
 .action-buttons {
@@ -566,12 +607,75 @@ function showTableDetails(table: any) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  cursor: pointer;
+  padding: 16px;
+  border-radius: 12px;
+  background: white;
+  border: 2px solid #e5e7eb;
   transition: all 0.2s ease;
 }
 
 .table-card:hover {
-  transform: scale(1.08);
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.table-card.occupied {
+  border-color: #ef4444;
+}
+
+.table-card.available {
+  border-color: #10b981;
+}
+
+.table-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  width: 100%;
+}
+
+.table-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.action-btn-small {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.menu-btn {
+  background: #3b82f6;
+  color: white;
+}
+
+.menu-btn:hover {
+  background: #2563eb;
+}
+
+.bill-btn {
+  background: #f59e0b;
+  color: white;
+}
+
+.bill-btn:hover {
+  background: #d97706;
+}
+
+.start-service-btn {
+  background: #10b981;
+  color: white;
+}
+
+.start-service-btn:hover {
+  background: #059669;
 }
 
 .table-name {

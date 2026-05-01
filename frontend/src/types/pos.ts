@@ -166,7 +166,7 @@ export interface MenuItem {
   /** Price in local currency */
   price: number
 
-  /** Category for grouping (main, dessert, beverage) */
+  /** Category for grouping (main, dessert, beverage, add-on) */
   category: string
 
   /** Optional image URL */
@@ -177,6 +177,12 @@ export interface MenuItem {
 
   /** Whether item is today's special */
   isDailySpecial?: boolean
+
+  /** Parent item ID for add-ons */
+  parentId?: string
+
+  /** Whether this is an add-on/sub-item */
+  isAddon?: boolean
 }
 
 // ==========================================
@@ -259,11 +265,11 @@ export interface Order {
  */
 export interface OrderConfirmRequest {
   /** Idempotency key to prevent duplicates */
-  idempotencyKey: string
+  idempotency_key: string
 
   /** Items to add to order */
   items: Array<{
-    menuItemId: string
+    menu_item_id: string
     quantity: number
     notes?: string
   }>

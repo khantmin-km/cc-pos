@@ -138,9 +138,9 @@ export const useOrdersStore = defineStore('orders', () => {
 
     try {
       const request: OrderConfirmRequest = {
-        idempotencyKey: `order_${Date.now()}_${Math.random()}`,
+        idempotency_key: `order_${Date.now()}_${Math.random()}`,
         items: draftItems.value.map((item) => ({
-          menuItemId: item.menuItemId,
+          menu_item_id: item.menuItemId,
           quantity: item.quantity,
           notes: item.notes,
         })),
