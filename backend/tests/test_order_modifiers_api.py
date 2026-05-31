@@ -11,6 +11,7 @@ from app.main import app
 from app.models.menu_item import MenuItem
 from app.models.order_item import OrderItem
 from app.models.physical_table import PhysicalTable
+from app.services import order_service
 
 
 @pytest.fixture()
@@ -199,3 +200,80 @@ def test_confirm_order_modifier_validation_returns_structured_error(
         and detail["reason"] == "DUPLICATE_GROUP_SELECTION"
         for detail in payload["details"]
     )
+
+
+def test_confirm_order_prints_modifiers_grouped_under_main_item(
+    client: TestClient,
+    db_session: Session,
+    waiter_auth_header: dict[str, str],
+    admin_auth_header: dict[str, str],
+    monkeypatch,
+) -> None:
+    table = seed_table(db_session, "OM3")
+    menu_item = seed_menu_item(db_session, "Thai Noodle", "50.00")
+    group_id, option_id = _setup_modifier_config(
+        client,
+        admin_auth_header=admin_auth_header,
+        menu_item_id=menu_item.id,
+    )
+    second_option = client.post(
+        f"/modifier-groups/{group_id}/options",
+        json={"code": "CRACKLING", "label": "Pork Crackling", "price_delta": "15.00"},
+        headers=admin_auth_header,
+    )
+    assert second_option.status_code == 201
+    second_option_id = second_option.json()["id"]
+    update = client.put(
+        f"/menu-items/{menu_item.id}/modifiers",
+        json={
+            "groups": [
+                {
+                    "modifier_group_id": group_id,
+                    "min_select": 0,
+                    "max_select": 3,
+                    "option_ids": [option_id, second_option_id],
+                }
+            ]
+        },
+        headers=admin_auth_header,
+    )
+    assert update.status_code == 200
+
+    start = client.post(f"/tables/{table.id}/start-service", headers=waiter_auth_header)
+    assert start.status_code == 200
+
+    captured_items = []
+
+    def capture_ticket(items):
+        captured_items.extend(items)
+        return True
+
+    monkeypatch.setattr(order_service, "print_kitchen_ticket", capture_ticket)
+
+    response = client.post(
+        f"/tables/{table.id}/orders/confirm",
+        json={
+            "idempotency_key": "mod-order-3",
+            "items": [
+                {
+                    "client_line_id": "line-1",
+                    "menu_item_id": str(menu_item.id),
+                    "modifier_selections": [
+                        {
+                            "modifier_group_id": group_id,
+                            "selected_option_ids": [option_id, second_option_id],
+                        }
+                    ],
+                }
+            ],
+        },
+        headers=waiter_auth_header,
+    )
+    assert response.status_code == 200
+    assert len(captured_items) == 1
+
+    ticket_item = captured_items[0]
+    assert ticket_item.menu_item_name == "Thai Noodle"
+    assert len(ticket_item.modifier_groups) == 1
+    assert ticket_item.modifier_groups[0].group_name == "Add-on"
+    assert ticket_item.modifier_groups[0].option_labels == ("Fried Egg", "Pork Crackling")

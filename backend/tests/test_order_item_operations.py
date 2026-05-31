@@ -158,6 +158,26 @@ def test_reprint_active_creates_duplicate_print_event(db_session: Session) -> No
     assert int(duplicate_count or 0) == 1
 
 
+def test_reprint_main_includes_modifier_groups(db_session: Session, monkeypatch) -> None:
+    _, _, main_item_id, _ = seed_main_with_modifier_child(db_session)
+    captured_items = []
+
+    def capture_ticket(items):
+        captured_items.extend(items)
+        return True
+
+    monkeypatch.setattr(order_item_service, "print_kitchen_ticket", capture_ticket)
+
+    order_item_service.reprint_order_item(db_session, main_item_id)
+
+    assert len(captured_items) == 1
+    ticket_item = captured_items[0]
+    assert ticket_item.menu_item_name == "Soup"
+    assert len(ticket_item.modifier_groups) == 1
+    assert ticket_item.modifier_groups[0].group_name == "Add-on"
+    assert ticket_item.modifier_groups[0].option_labels == ("Pork Crackling",)
+
+
 def test_reprint_allows_closed_group_for_active_item(db_session: Session) -> None:
     group_id, _, order_item_id = seed_active_order_item(db_session)
     table_group_service.request_bill(db_session, group_id)
