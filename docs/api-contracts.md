@@ -4,17 +4,6 @@
 - Modifier support and order-confirm line expansion are planned next.
 - Frontend integration details: `docs/modifiers-frontend-integration.md`
 - Planned API shapes: `docs/api-reference-planned-modifiers.md`
-- Planned modifier endpoints:
-- `GET /modifier-groups`
-- `POST /modifier-groups`
-- `GET /modifier-groups/{modifierGroupId}`
-- `PATCH /modifier-groups/{modifierGroupId}`
-- `GET /modifier-groups/{modifierGroupId}/options`
-- `POST /modifier-groups/{modifierGroupId}/options`
-- `GET /modifier-options/{modifierOptionId}`
-- `PATCH /modifier-options/{modifierOptionId}`
-- `GET /menu-items/{menuItemId}/modifiers`
-- `PUT /menu-items/{menuItemId}/modifiers`
 - Planned order-confirm payload change:
 - remove `quantity`
 - require one submitted line = one persisted main order-item
@@ -187,6 +176,37 @@ Update name, price, status, or category (admin only).
 
 ### POST /menu-items/{menuItemId}/retire
 Retire a menu item (admin only).
+
+### GET /menu-items/{menuItemId}/modifiers
+Fetch full modifier configuration for one menu item (admin only).
+
+### PUT /menu-items/{menuItemId}/modifiers
+Replace full modifier configuration for one menu item (admin only).
+
+## Modifiers
+### GET /modifier-groups
+List modifier groups (admin only).
+
+### POST /modifier-groups
+Create a modifier group (admin only).
+
+### GET /modifier-groups/{modifierGroupId}
+Get one modifier group (admin only).
+
+### PATCH /modifier-groups/{modifierGroupId}
+Update group name or active status (admin only).
+
+### GET /modifier-groups/{modifierGroupId}/options
+List options for one group (admin only).
+
+### POST /modifier-groups/{modifierGroupId}/options
+Create option under one group (admin only).
+
+### GET /modifier-options/{modifierOptionId}
+Get one modifier option (admin only).
+
+### PATCH /modifier-options/{modifierOptionId}
+Update option label, price delta, or active status (admin only).
 
 ## Audit Events
 ### GET /audit-events

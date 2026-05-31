@@ -9,6 +9,7 @@ from app.api.routers import (
     audit_events,
     auth,
     menu_items,
+    modifiers,
     order_items,
     orders,
     physical_tables,
@@ -37,6 +38,7 @@ app.include_router(orders.router, prefix="/tables", tags=["orders"])
 app.include_router(order_items.router, prefix="/order-items", tags=["order-items"])
 app.include_router(table_groups.router, prefix="/table-groups", tags=["table-groups"])
 app.include_router(menu_items.router, prefix="/menu-items", tags=["menu-items"])
+app.include_router(modifiers.router, tags=["modifiers"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(audit_events.router, prefix="/audit-events", tags=["audit-events"])
 

@@ -1,7 +1,9 @@
 # Modifiers Integration Guide (Frontend)
 
 Status: Spec-locked and approved for implementation planning.  
-Implementation status: Not implemented in backend yet.
+Implementation status:
+- Implemented: modifier catalog endpoints, menu-item modifier config endpoints.
+- Planned next: modifier-aware order confirm payload and validation error response.
 
 This document is the shared contract guide for frontend adaptation.
 
@@ -49,7 +51,7 @@ Effects:
 
 Archiving a group does not automatically archive its options.
 
-## 4. Planned Endpoints
+## 4. Implemented Endpoints
 
 Global modifier catalog:
 

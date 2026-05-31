@@ -1,8 +1,10 @@
 # API Reference (Planned Modifiers Contract)
 
-Status: Planned. Not implemented in backend yet.
+Status:
+- Implemented now: modifier catalog and menu-item modifier configuration endpoints.
+- Planned next: order confirm payload/validation changes and table-group order-item shape extensions.
 
-This document defines the planned API shapes for the modifiers feature and related order-confirm changes.
+This document defines the target API shapes for the modifiers feature, including both implemented and planned-next parts.
 
 ## Auth
 

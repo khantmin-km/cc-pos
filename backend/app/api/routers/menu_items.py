@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_admin_user
 from app.schemas.menu_item import MenuItemCreateRequest, MenuItemResponse, MenuItemUpdateRequest
-from app.services import menu_item_service
+from app.schemas.modifier import (
+    MenuItemModifierConfigReplaceRequest,
+    MenuItemModifierConfigResponse,
+)
+from app.services import menu_item_service, modifier_service
 from app.services.errors import ConflictError, InvalidStateError, NotFoundError
 
 router = APIRouter()
@@ -112,6 +116,41 @@ def upload_menu_item_image(
             data=data,
         )
         return MenuItemResponse.model_validate(item)
+    except Exception as exc:
+        _handle_error(exc)
+        raise
+
+
+@router.get(
+    "/{menu_item_id}/modifiers",
+    response_model=MenuItemModifierConfigResponse,
+    dependencies=[Depends(require_admin_user)],
+)
+def get_menu_item_modifiers(
+    menu_item_id: UUID,
+    db: Session = Depends(get_db),
+) -> MenuItemModifierConfigResponse:
+    try:
+        groups = modifier_service.get_menu_item_modifier_config(db, menu_item_id)
+        return MenuItemModifierConfigResponse.model_validate({"groups": groups})
+    except Exception as exc:
+        _handle_error(exc)
+        raise
+
+
+@router.put(
+    "/{menu_item_id}/modifiers",
+    response_model=MenuItemModifierConfigResponse,
+    dependencies=[Depends(require_admin_user)],
+)
+def replace_menu_item_modifiers(
+    menu_item_id: UUID,
+    request: MenuItemModifierConfigReplaceRequest,
+    db: Session = Depends(get_db),
+) -> MenuItemModifierConfigResponse:
+    try:
+        groups = modifier_service.replace_menu_item_modifier_config(db, menu_item_id, request.groups)
+        return MenuItemModifierConfigResponse.model_validate({"groups": groups})
     except Exception as exc:
         _handle_error(exc)
         raise

@@ -1,10 +1,8 @@
 # API Reference (Current)
 
-Planned (not yet implemented): see `docs/modifiers-frontend-integration.md` for upcoming modifier and order-confirm payload changes.
-Detailed planned endpoint schemas: `docs/api-reference-planned-modifiers.md`.
+Modifier catalog and menu-item modifier configuration endpoints are implemented.
+Planned (not yet implemented): modifier-aware order confirm payload and validation error contract (see `docs/modifiers-frontend-integration.md` and `docs/api-reference-planned-modifiers.md`).
 Planned change highlights:
-- new modifier catalog endpoints
-- new menu-item modifier configuration endpoints
 - order confirm request removes `quantity` and requires `client_line_id` per line
 - structured modifier validation errors keyed by `client_line_id`
 
@@ -319,6 +317,198 @@ Response:
   "status": "AVAILABLE|UNAVAILABLE|RETIRED",
   "image_url": "string|null",
   "created_at": "datetime"
+}
+```
+
+### GET /menu-items/{menuItemId}/modifiers
+Response:
+```json
+{
+  "groups": [
+    {
+      "modifier_group_id": "uuid",
+      "group_name": "string",
+      "min_select": 0,
+      "max_select": 1,
+      "option_ids": ["uuid"]
+    }
+  ]
+}
+```
+
+### PUT /menu-items/{menuItemId}/modifiers
+Request:
+```json
+{
+  "groups": [
+    {
+      "modifier_group_id": "uuid",
+      "min_select": 0,
+      "max_select": 1,
+      "option_ids": ["uuid"]
+    }
+  ]
+}
+```
+Response:
+```json
+{
+  "groups": [
+    {
+      "modifier_group_id": "uuid",
+      "group_name": "string",
+      "min_select": 0,
+      "max_select": 1,
+      "option_ids": ["uuid"]
+    }
+  ]
+}
+```
+
+## Modifiers (admin only)
+### GET /modifier-groups
+Response:
+```json
+[
+  {
+    "id": "uuid",
+    "code": "string",
+    "name": "string",
+    "is_active": true,
+    "created_at": "datetime",
+    "updated_at": "datetime"
+  }
+]
+```
+
+### POST /modifier-groups
+Request:
+```json
+{
+  "code": "string",
+  "name": "string"
+}
+```
+Response:
+```json
+{
+  "id": "uuid",
+  "code": "string",
+  "name": "string",
+  "is_active": true,
+  "created_at": "datetime",
+  "updated_at": "datetime"
+}
+```
+
+### GET /modifier-groups/{modifierGroupId}
+Response:
+```json
+{
+  "id": "uuid",
+  "code": "string",
+  "name": "string",
+  "is_active": true,
+  "created_at": "datetime",
+  "updated_at": "datetime"
+}
+```
+
+### PATCH /modifier-groups/{modifierGroupId}
+Request:
+```json
+{
+  "name": "string|null",
+  "is_active": "boolean|null"
+}
+```
+Response:
+```json
+{
+  "id": "uuid",
+  "code": "string",
+  "name": "string",
+  "is_active": true,
+  "created_at": "datetime",
+  "updated_at": "datetime"
+}
+```
+
+### GET /modifier-groups/{modifierGroupId}/options
+Response:
+```json
+[
+  {
+    "id": "uuid",
+    "modifier_group_id": "uuid",
+    "code": "string",
+    "label": "string",
+    "price_delta": "decimal",
+    "is_active": true,
+    "created_at": "datetime",
+    "updated_at": "datetime"
+  }
+]
+```
+
+### POST /modifier-groups/{modifierGroupId}/options
+Request:
+```json
+{
+  "code": "string",
+  "label": "string",
+  "price_delta": "decimal"
+}
+```
+Response:
+```json
+{
+  "id": "uuid",
+  "modifier_group_id": "uuid",
+  "code": "string",
+  "label": "string",
+  "price_delta": "decimal",
+  "is_active": true,
+  "created_at": "datetime",
+  "updated_at": "datetime"
+}
+```
+
+### GET /modifier-options/{modifierOptionId}
+Response:
+```json
+{
+  "id": "uuid",
+  "modifier_group_id": "uuid",
+  "code": "string",
+  "label": "string",
+  "price_delta": "decimal",
+  "is_active": true,
+  "created_at": "datetime",
+  "updated_at": "datetime"
+}
+```
+
+### PATCH /modifier-options/{modifierOptionId}
+Request:
+```json
+{
+  "label": "string|null",
+  "price_delta": "decimal|null",
+  "is_active": "boolean|null"
+}
+```
+Response:
+```json
+{
+  "id": "uuid",
+  "modifier_group_id": "uuid",
+  "code": "string",
+  "label": "string",
+  "price_delta": "decimal",
+  "is_active": true,
+  "created_at": "datetime",
+  "updated_at": "datetime"
 }
 ```
 
