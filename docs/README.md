@@ -12,3 +12,4 @@ These files are the current, authoritative reference for the project domain mode
 - modifiers-frontend-integration.md
 - er-diagram.md
 - database-schema.md
+- modifiers-manual-test-curl.md
