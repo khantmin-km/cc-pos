@@ -5,11 +5,11 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.printing import KitchenTicketItem, print_kitchen_ticket
-from app.repositories import menu_item_repo, order_repo, physical_table_repo, table_group_repo
+from app.printing import KitchenTicketItem, KitchenTicketModifierGroup, print_kitchen_ticket
+from app.repositories import menu_item_repo, modifier_repo, order_repo, physical_table_repo, table_group_repo
 from app.schemas.order import OrderConfirmItemRequest
 from app.services import audit_service
-from app.services.errors import ConflictError, InvalidStateError, NotFoundError
+from app.services.errors import ConflictError, InvalidStateError, ModifierValidationError, NotFoundError
 from app.services.transaction import transactional
 
 
@@ -17,6 +17,16 @@ OPEN = "OPEN"
 CONFIRMED = "CONFIRMED"
 ACTIVE = "ACTIVE"
 AVAILABLE = "AVAILABLE"
+MAIN = "MAIN"
+MODIFIER = "MODIFIER"
+
+REASON_MISSING_REQUIRED_SELECTION = "MISSING_REQUIRED_SELECTION"
+REASON_TOO_MANY_SELECTIONS = "TOO_MANY_SELECTIONS"
+REASON_OPTION_NOT_ALLOWED = "OPTION_NOT_ALLOWED"
+REASON_OPTION_NOT_AVAILABLE = "OPTION_NOT_AVAILABLE"
+REASON_GROUP_NOT_CONFIGURED = "GROUP_NOT_CONFIGURED"
+REASON_DUPLICATE_SELECTION = "DUPLICATE_SELECTION"
+REASON_DUPLICATE_GROUP_SELECTION = "DUPLICATE_GROUP_SELECTION"
 
 
 def _now_utc() -> datetime:
@@ -50,6 +60,176 @@ def _validate_menu_items(
 
     # Keep only snapshot fields required for OrderItem creation.
     return {item.id: (item.name, item.price) for item in menu_items}
+
+
+def _load_modifier_config_for_menu_item(
+    db: Session, menu_item_id: UUID
+) -> dict[UUID, dict]:
+    group_rows = modifier_repo.list_menu_item_modifier_groups(db, menu_item_id)
+    if not group_rows:
+        return {}
+
+    menu_group_ids = [menu_group.id for menu_group, _ in group_rows]
+    option_links = modifier_repo.list_menu_item_modifier_option_links(db, menu_group_ids)
+    option_ids_by_menu_group_id: dict[UUID, set[UUID]] = {}
+    for link in option_links:
+        option_ids_by_menu_group_id.setdefault(link.menu_item_modifier_group_id, set()).add(link.modifier_option_id)
+
+    config: dict[UUID, dict] = {}
+    for menu_group, group in group_rows:
+        config[group.id] = {
+            "group_active": bool(group.is_active),
+            "group_name": group.name,
+            "min_select": menu_group.min_select,
+            "max_select": menu_group.max_select,
+            "allowed_option_ids": option_ids_by_menu_group_id.get(menu_group.id, set()),
+        }
+    return config
+
+
+def _collect_modifier_validation_errors(db: Session, items: list[OrderConfirmItemRequest]) -> tuple[list[dict], dict]:
+    errors: list[dict] = []
+
+    menu_item_ids = sorted({line.menu_item_id for line in items})
+    configs_by_menu_item_id = {
+        menu_item_id: _load_modifier_config_for_menu_item(db, menu_item_id) for menu_item_id in menu_item_ids
+    }
+
+    all_selected_option_ids = sorted(
+        {
+            option_id
+            for line in items
+            for selection in line.modifier_selections
+            for option_id in selection.selected_option_ids
+        }
+    )
+    option_rows = modifier_repo.get_modifier_options_by_ids(db, all_selected_option_ids)
+    option_by_id = {row.id: row for row in option_rows}
+
+    resolved_lines: dict[str, list[dict]] = {}
+
+    for line in items:
+        line_config = configs_by_menu_item_id.get(line.menu_item_id, {})
+        active_line_config = {
+            group_id: cfg for group_id, cfg in line_config.items() if cfg["group_active"]
+        }
+
+        seen_groups: set[UUID] = set()
+        line_group_selection_counts: dict[UUID, int] = {}
+        line_resolved_modifiers: list[dict] = []
+
+        for selection in line.modifier_selections:
+            group_id = selection.modifier_group_id
+
+            if group_id in seen_groups:
+                errors.append(
+                    {
+                        "client_line_id": line.client_line_id,
+                        "modifier_group_id": str(group_id),
+                        "reason": REASON_DUPLICATE_GROUP_SELECTION,
+                    }
+                )
+                continue
+            seen_groups.add(group_id)
+
+            group_cfg = active_line_config.get(group_id)
+            if not group_cfg:
+                errors.append(
+                    {
+                        "client_line_id": line.client_line_id,
+                        "modifier_group_id": str(group_id),
+                        "reason": REASON_GROUP_NOT_CONFIGURED,
+                    }
+                )
+                continue
+
+            selected_ids = selection.selected_option_ids
+            if len(selected_ids) != len(set(selected_ids)):
+                errors.append(
+                    {
+                        "client_line_id": line.client_line_id,
+                        "modifier_group_id": str(group_id),
+                        "reason": REASON_DUPLICATE_SELECTION,
+                    }
+                )
+                continue
+
+            line_group_selection_counts[group_id] = len(selected_ids)
+            if len(selected_ids) > group_cfg["max_select"]:
+                errors.append(
+                    {
+                        "client_line_id": line.client_line_id,
+                        "modifier_group_id": str(group_id),
+                        "reason": REASON_TOO_MANY_SELECTIONS,
+                    }
+                )
+                continue
+
+            for option_id in selected_ids:
+                if option_id not in group_cfg["allowed_option_ids"]:
+                    errors.append(
+                        {
+                            "client_line_id": line.client_line_id,
+                            "modifier_group_id": str(group_id),
+                            "reason": REASON_OPTION_NOT_ALLOWED,
+                        }
+                    )
+                    continue
+                option = option_by_id.get(option_id)
+                if not option or not option.is_active:
+                    errors.append(
+                        {
+                            "client_line_id": line.client_line_id,
+                            "modifier_group_id": str(group_id),
+                            "reason": REASON_OPTION_NOT_AVAILABLE,
+                        }
+                    )
+                    continue
+                line_resolved_modifiers.append(
+                    {
+                        "modifier_group_id": group_id,
+                        "modifier_group_name": group_cfg["group_name"],
+                        "option_id": option_id,
+                        "option_label": option.label,
+                        "price_delta": option.price_delta,
+                    }
+                )
+
+        for group_id, group_cfg in active_line_config.items():
+            selected_count = line_group_selection_counts.get(group_id, 0)
+            if selected_count < group_cfg["min_select"]:
+                errors.append(
+                    {
+                        "client_line_id": line.client_line_id,
+                        "modifier_group_id": str(group_id),
+                        "reason": REASON_MISSING_REQUIRED_SELECTION,
+                    }
+                )
+
+        resolved_lines[line.client_line_id] = line_resolved_modifiers
+
+    return errors, resolved_lines
+
+
+def _build_ticket_modifier_groups(resolved_modifiers: list[dict]) -> tuple[KitchenTicketModifierGroup, ...]:
+    grouped_labels: dict[UUID, list[str]] = {}
+    group_names: dict[UUID, str] = {}
+    group_order: list[UUID] = []
+    for modifier in resolved_modifiers:
+        group_id = modifier["modifier_group_id"]
+        group_name = modifier["modifier_group_name"]
+        if group_id not in grouped_labels:
+            grouped_labels[group_id] = []
+            group_names[group_id] = group_name
+            group_order.append(group_id)
+        grouped_labels[group_id].append(modifier["option_label"])
+    return tuple(
+        KitchenTicketModifierGroup(
+            group_name=group_names[group_id],
+            option_labels=tuple(grouped_labels[group_id]),
+        )
+        for group_id in group_order
+    )
 
 
 def confirm_order(
@@ -87,6 +267,9 @@ def confirm_order(
                 raise InvalidStateError("TableGroup must be OPEN to confirm order")
 
             snapshots = _validate_menu_items(db, items)
+            modifier_errors, resolved_line_modifiers = _collect_modifier_validation_errors(db, items)
+            if modifier_errors:
+                raise ModifierValidationError(modifier_errors)
 
             order = order_repo.create_order(
                 db=db,
@@ -99,26 +282,45 @@ def confirm_order(
             ticket_items: list[KitchenTicketItem] = []
             for line in items:
                 name_snap, price_snap = snapshots[line.menu_item_id]
-                for _ in range(line.quantity):
-                    created_item = order_repo.create_order_item(
+                created_item = order_repo.create_order_item(
+                    db=db,
+                    order_id=order.id,
+                    physical_table_id=physical_table_id,
+                    menu_item_id=line.menu_item_id,
+                    menu_item_name_snap=name_snap,
+                    unit_price_snap=price_snap,
+                    note_snap=line.note,
+                    status=ACTIVE,
+                    kind=MAIN,
+                )
+                created_item_ids.append(created_item.id)
+                line_modifiers = resolved_line_modifiers.get(line.client_line_id, [])
+                ticket_items.append(
+                    KitchenTicketItem(
+                        order_item_id=created_item.id,
+                        table_code=table.table_code,
+                        menu_item_name=name_snap,
+                        note=line.note,
+                        modifier_groups=_build_ticket_modifier_groups(line_modifiers),
+                    )
+                )
+
+                for modifier in line_modifiers:
+                    modifier_item = order_repo.create_order_item(
                         db=db,
                         order_id=order.id,
                         physical_table_id=physical_table_id,
-                        menu_item_id=line.menu_item_id,
-                        menu_item_name_snap=name_snap,
-                        unit_price_snap=price_snap,
-                        note_snap=line.note,
+                        menu_item_id=None,
+                        menu_item_name_snap=modifier["option_label"],
+                        unit_price_snap=modifier["price_delta"],
+                        note_snap=None,
                         status=ACTIVE,
+                        kind=MODIFIER,
+                        parent_order_item_id=created_item.id,
+                        modifier_group_name_snap=modifier["modifier_group_name"],
+                        modifier_option_label_snap=modifier["option_label"],
                     )
-                    created_item_ids.append(created_item.id)
-                    ticket_items.append(
-                        KitchenTicketItem(
-                            order_item_id=created_item.id,
-                            table_code=table.table_code,
-                            menu_item_name=name_snap,
-                            note=line.note,
-                        )
-                    )
+                    created_item_ids.append(modifier_item.id)
 
             if print_kitchen_ticket(ticket_items):
                 order_repo.create_original_print_events(

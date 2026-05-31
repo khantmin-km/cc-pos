@@ -1,13 +1,19 @@
 # backend/app/api/routers/orders.py
 from uuid import UUID
 
+from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.schemas.order import OrderConfirmRequest, OrderConfirmResponse
 from app.services import order_service
-from app.services.errors import ConflictError, InvalidStateError, NotFoundError
+from app.services.errors import (
+    ConflictError,
+    InvalidStateError,
+    ModifierValidationError,
+    NotFoundError,
+)
 
 router = APIRouter()
 
@@ -31,7 +37,7 @@ def confirm_order(
     request: OrderConfirmRequest,
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> OrderConfirmResponse:
+) -> OrderConfirmResponse | JSONResponse:
     try:
         order_id, table_group_id, order_item_ids = order_service.confirm_order(
             db=db,
@@ -44,6 +50,15 @@ def confirm_order(
             order_id=order_id,
             table_group_id=table_group_id,
             order_item_ids=order_item_ids,
+        )
+    except ModifierValidationError as exc:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "code": exc.code,
+                "message": exc.message,
+                "details": exc.details,
+            },
         )
     except Exception as exc:
         _handle_error(exc)

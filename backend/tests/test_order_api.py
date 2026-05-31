@@ -81,8 +81,9 @@ def test_confirm_order_api_success(
         json={
             "idempotency_key": "api-order-1",
             "items": [
-                {"menu_item_id": str(item_a.id), "quantity": 2, "note": note},
-                {"menu_item_id": str(item_b.id), "quantity": 1},
+                {"client_line_id": "line-1", "menu_item_id": str(item_a.id), "note": note},
+                {"client_line_id": "line-2", "menu_item_id": str(item_a.id), "note": note},
+                {"client_line_id": "line-3", "menu_item_id": str(item_b.id)},
             ],
         },
         headers=waiter_auth_header,
@@ -114,7 +115,7 @@ def test_confirm_order_api_rejects_free_table(
         f"/tables/{table.id}/orders/confirm",
         json={
             "idempotency_key": "api-order-2",
-            "items": [{"menu_item_id": str(item.id), "quantity": 1}],
+            "items": [{"client_line_id": "line-1", "menu_item_id": str(item.id)}],
         },
         headers=waiter_auth_header,
     )
@@ -138,7 +139,7 @@ def test_confirm_order_api_rejects_non_open_group(
         f"/tables/{table.id}/orders/confirm",
         json={
             "idempotency_key": "api-order-3",
-            "items": [{"menu_item_id": str(item.id), "quantity": 1}],
+            "items": [{"client_line_id": "line-1", "menu_item_id": str(item.id)}],
         },
         headers=waiter_auth_header,
     )
@@ -159,7 +160,7 @@ def test_confirm_order_api_rejects_nonexistent_menu_item(
         f"/tables/{table.id}/orders/confirm",
         json={
             "idempotency_key": "api-order-4",
-            "items": [{"menu_item_id": str(uuid4()), "quantity": 1}],
+            "items": [{"client_line_id": "line-1", "menu_item_id": str(uuid4())}],
         },
         headers=waiter_auth_header,
     )
@@ -181,7 +182,7 @@ def test_confirm_order_api_rejects_unavailable_menu_item(
         f"/tables/{table.id}/orders/confirm",
         json={
             "idempotency_key": "api-order-5",
-            "items": [{"menu_item_id": str(item.id), "quantity": 1}],
+            "items": [{"client_line_id": "line-1", "menu_item_id": str(item.id)}],
         },
         headers=waiter_auth_header,
     )
@@ -201,7 +202,10 @@ def test_confirm_order_api_idempotency_returns_same_order(
 
     request_payload = {
         "idempotency_key": "api-order-same-key",
-        "items": [{"menu_item_id": str(item.id), "quantity": 2}],
+        "items": [
+            {"client_line_id": "line-1", "menu_item_id": str(item.id)},
+            {"client_line_id": "line-2", "menu_item_id": str(item.id)},
+        ],
     }
     first = client.post(
         f"/tables/{table.id}/orders/confirm",
@@ -237,7 +241,7 @@ def test_confirm_order_api_validation_errors(
 
     missing_key = client.post(
         f"/tables/{table.id}/orders/confirm",
-        json={"items": [{"menu_item_id": str(uuid4()), "quantity": 1}]},
+        json={"items": [{"client_line_id": "line-1", "menu_item_id": str(uuid4())}]},
         headers=waiter_auth_header,
     )
     empty_items = client.post(
@@ -245,11 +249,11 @@ def test_confirm_order_api_validation_errors(
         json={"idempotency_key": "api-order-6", "items": []},
         headers=waiter_auth_header,
     )
-    invalid_quantity = client.post(
+    missing_client_line_id = client.post(
         f"/tables/{table.id}/orders/confirm",
         json={
             "idempotency_key": "api-order-7",
-            "items": [{"menu_item_id": str(uuid4()), "quantity": 0}],
+            "items": [{"menu_item_id": str(uuid4())}],
         },
         headers=waiter_auth_header,
     )
@@ -257,12 +261,21 @@ def test_confirm_order_api_validation_errors(
         f"/tables/{table.id}/orders/confirm",
         json={
             "idempotency_key": "api-order-8",
-            "items": [{"menu_item_id": str(uuid4()), "quantity": 1, "note": long_note}],
+            "items": [{"client_line_id": "line-1", "menu_item_id": str(uuid4()), "note": long_note}],
+        },
+        headers=waiter_auth_header,
+    )
+    legacy_quantity = client.post(
+        f"/tables/{table.id}/orders/confirm",
+        json={
+            "idempotency_key": "api-order-9",
+            "items": [{"client_line_id": "line-1", "menu_item_id": str(uuid4()), "quantity": 1}],
         },
         headers=waiter_auth_header,
     )
 
     assert missing_key.status_code == 422
     assert empty_items.status_code == 422
-    assert invalid_quantity.status_code == 422
+    assert missing_client_line_id.status_code == 422
     assert invalid_note.status_code == 422
+    assert legacy_quantity.status_code == 422

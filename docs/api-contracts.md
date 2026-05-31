@@ -1,5 +1,13 @@
 # API Contracts (Phase 1)
 
+## Modifier Contract Status
+- Implemented:
+- modifier-aware order confirm payload (`client_line_id`, no `quantity`, `modifier_selections`)
+- structured modifier validation error payload
+- table-group order-items response modifier relationship fields
+- grouped kitchen print payload rendering by modifier group label
+- Frontend integration details: `docs/modifiers-frontend-integration.md`
+
 ## Enumerations
 ### TableGroupState
 ```
@@ -87,7 +95,7 @@ Split an OPEN TableGroup only when it has zero OrderItems.
 Confirm an Order (no server-side drafts).
 
 **Request (conceptual):**
-- items[] (menu_item_id, quantity)
+- items[] (client_line_id, menu_item_id, note, modifier_selections[])
 - idempotency_key
 
 **Effects:**
@@ -167,6 +175,37 @@ Update name, price, status, or category (admin only).
 
 ### POST /menu-items/{menuItemId}/retire
 Retire a menu item (admin only).
+
+### GET /menu-items/{menuItemId}/modifiers
+Fetch full modifier configuration for one menu item (admin only).
+
+### PUT /menu-items/{menuItemId}/modifiers
+Replace full modifier configuration for one menu item (admin only).
+
+## Modifiers
+### GET /modifier-groups
+List modifier groups (admin only).
+
+### POST /modifier-groups
+Create a modifier group (admin only).
+
+### GET /modifier-groups/{modifierGroupId}
+Get one modifier group (admin only).
+
+### PATCH /modifier-groups/{modifierGroupId}
+Update group name or active status (admin only).
+
+### GET /modifier-groups/{modifierGroupId}/options
+List options for one group (admin only).
+
+### POST /modifier-groups/{modifierGroupId}/options
+Create option under one group (admin only).
+
+### GET /modifier-options/{modifierOptionId}
+Get one modifier option (admin only).
+
+### PATCH /modifier-options/{modifierOptionId}
+Update option label, price delta, or active status (admin only).
 
 ## Audit Events
 ### GET /audit-events

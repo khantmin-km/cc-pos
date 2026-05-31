@@ -1,5 +1,7 @@
 # API Reference (Current)
 
+Modifier catalog, menu-item modifier configuration, modifier-aware order confirm validation, table-group order-item relationship fields, and grouped modifier kitchen-print payload rendering are implemented.
+
 All endpoints require `Authorization: Bearer <session_token>` unless noted otherwise.
 
 ## Auth
@@ -98,10 +100,14 @@ Response:
   {
     "id": "uuid",
     "order_id": "uuid",
+    "kind": "MAIN|MODIFIER",
+    "parent_order_item_id": "uuid|null",
     "physical_table_id": "uuid",
     "table_code": "string",
     "menu_item_id": "uuid|null",
     "menu_item_name": "string",
+    "modifier_group_name_snap": "string|null",
+    "modifier_option_label_snap": "string|null",
     "unit_price": "decimal",
     "note": "string|null",
     "status": "ACTIVE|VOIDED",
@@ -185,9 +191,15 @@ Request:
   "idempotency_key": "string",
   "items": [
     {
+      "client_line_id": "string",
       "menu_item_id": "uuid",
-      "quantity": 1,
-      "note": "string|null"
+      "note": "string|null",
+      "modifier_selections": [
+        {
+          "modifier_group_id": "uuid",
+          "selected_option_ids": ["uuid"]
+        }
+      ]
     }
   ]
 }
@@ -198,6 +210,21 @@ Response:
   "order_id": "uuid",
   "table_group_id": "uuid",
   "order_item_ids": ["uuid"]
+}
+```
+
+Validation error response (modifier rules):
+```json
+{
+  "code": "MODIFIER_VALIDATION_FAILED",
+  "message": "Modifier validation failed",
+  "details": [
+    {
+      "client_line_id": "string",
+      "modifier_group_id": "uuid",
+      "reason": "MISSING_REQUIRED_SELECTION|TOO_MANY_SELECTIONS|OPTION_NOT_ALLOWED|OPTION_NOT_AVAILABLE|GROUP_NOT_CONFIGURED|DUPLICATE_SELECTION|DUPLICATE_GROUP_SELECTION"
+    }
+  ]
 }
 ```
 
@@ -311,6 +338,198 @@ Response:
   "status": "AVAILABLE|UNAVAILABLE|RETIRED",
   "image_url": "string|null",
   "created_at": "datetime"
+}
+```
+
+### GET /menu-items/{menuItemId}/modifiers
+Response:
+```json
+{
+  "groups": [
+    {
+      "modifier_group_id": "uuid",
+      "group_name": "string",
+      "min_select": 0,
+      "max_select": 1,
+      "option_ids": ["uuid"]
+    }
+  ]
+}
+```
+
+### PUT /menu-items/{menuItemId}/modifiers
+Request:
+```json
+{
+  "groups": [
+    {
+      "modifier_group_id": "uuid",
+      "min_select": 0,
+      "max_select": 1,
+      "option_ids": ["uuid"]
+    }
+  ]
+}
+```
+Response:
+```json
+{
+  "groups": [
+    {
+      "modifier_group_id": "uuid",
+      "group_name": "string",
+      "min_select": 0,
+      "max_select": 1,
+      "option_ids": ["uuid"]
+    }
+  ]
+}
+```
+
+## Modifiers (admin only)
+### GET /modifier-groups
+Response:
+```json
+[
+  {
+    "id": "uuid",
+    "code": "string",
+    "name": "string",
+    "is_active": true,
+    "created_at": "datetime",
+    "updated_at": "datetime"
+  }
+]
+```
+
+### POST /modifier-groups
+Request:
+```json
+{
+  "code": "string",
+  "name": "string"
+}
+```
+Response:
+```json
+{
+  "id": "uuid",
+  "code": "string",
+  "name": "string",
+  "is_active": true,
+  "created_at": "datetime",
+  "updated_at": "datetime"
+}
+```
+
+### GET /modifier-groups/{modifierGroupId}
+Response:
+```json
+{
+  "id": "uuid",
+  "code": "string",
+  "name": "string",
+  "is_active": true,
+  "created_at": "datetime",
+  "updated_at": "datetime"
+}
+```
+
+### PATCH /modifier-groups/{modifierGroupId}
+Request:
+```json
+{
+  "name": "string|null",
+  "is_active": "boolean|null"
+}
+```
+Response:
+```json
+{
+  "id": "uuid",
+  "code": "string",
+  "name": "string",
+  "is_active": true,
+  "created_at": "datetime",
+  "updated_at": "datetime"
+}
+```
+
+### GET /modifier-groups/{modifierGroupId}/options
+Response:
+```json
+[
+  {
+    "id": "uuid",
+    "modifier_group_id": "uuid",
+    "code": "string",
+    "label": "string",
+    "price_delta": "decimal",
+    "is_active": true,
+    "created_at": "datetime",
+    "updated_at": "datetime"
+  }
+]
+```
+
+### POST /modifier-groups/{modifierGroupId}/options
+Request:
+```json
+{
+  "code": "string",
+  "label": "string",
+  "price_delta": "decimal"
+}
+```
+Response:
+```json
+{
+  "id": "uuid",
+  "modifier_group_id": "uuid",
+  "code": "string",
+  "label": "string",
+  "price_delta": "decimal",
+  "is_active": true,
+  "created_at": "datetime",
+  "updated_at": "datetime"
+}
+```
+
+### GET /modifier-options/{modifierOptionId}
+Response:
+```json
+{
+  "id": "uuid",
+  "modifier_group_id": "uuid",
+  "code": "string",
+  "label": "string",
+  "price_delta": "decimal",
+  "is_active": true,
+  "created_at": "datetime",
+  "updated_at": "datetime"
+}
+```
+
+### PATCH /modifier-options/{modifierOptionId}
+Request:
+```json
+{
+  "label": "string|null",
+  "price_delta": "decimal|null",
+  "is_active": "boolean|null"
+}
+```
+Response:
+```json
+{
+  "id": "uuid",
+  "modifier_group_id": "uuid",
+  "code": "string",
+  "label": "string",
+  "price_delta": "decimal",
+  "is_active": true,
+  "created_at": "datetime",
+  "updated_at": "datetime"
 }
 ```
 

@@ -25,21 +25,30 @@ def create_order(db: Session, table_group_id: UUID, idempotency_key: str, state:
 
 def create_order_item(
     db: Session,
+    *,
     order_id: UUID,
     physical_table_id: UUID,
-    menu_item_id: UUID,
+    menu_item_id: UUID | None,
     menu_item_name_snap: str,
     unit_price_snap: Decimal,
     note_snap: str | None,
     status: str,
+    kind: str,
+    parent_order_item_id: UUID | None = None,
+    modifier_group_name_snap: str | None = None,
+    modifier_option_label_snap: str | None = None,
 ) -> OrderItem:
     item = OrderItem(
         order_id=order_id,
+        parent_order_item_id=parent_order_item_id,
         physical_table_id=physical_table_id,
         menu_item_id=menu_item_id,
         menu_item_name_snap=menu_item_name_snap,
+        modifier_group_name_snap=modifier_group_name_snap,
+        modifier_option_label_snap=modifier_option_label_snap,
         unit_price_snap=unit_price_snap,
         note_snap=note_snap,
+        kind=kind,
         status=status,
     )
     db.add(item)

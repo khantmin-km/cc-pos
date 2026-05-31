@@ -5,11 +5,18 @@ from uuid import UUID
 
 
 @dataclass(frozen=True)
+class KitchenTicketModifierGroup:
+    group_name: str
+    option_labels: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class KitchenTicketItem:
     order_item_id: UUID
     table_code: str
     menu_item_name: str
     note: str | None
+    modifier_groups: tuple[KitchenTicketModifierGroup, ...] = ()
 
 
 class PrinterAdapter(Protocol):

@@ -94,6 +94,25 @@ def seed_voided_order_item(db: Session, table_group_id, physical_table_id) -> Or
     return item
 
 
+def seed_modifier_child_item(db: Session, *, parent_order_item: OrderItem) -> OrderItem:
+    child = OrderItem(
+        order_id=parent_order_item.order_id,
+        parent_order_item_id=parent_order_item.id,
+        physical_table_id=parent_order_item.physical_table_id,
+        menu_item_id=None,
+        menu_item_name_snap="Pork Crackling",
+        modifier_group_name_snap="Add-on",
+        modifier_option_label_snap="Pork Crackling",
+        unit_price_snap=Decimal("15.00"),
+        kind="MODIFIER",
+        status="ACTIVE",
+    )
+    db.add(child)
+    db.commit()
+    db.refresh(child)
+    return child
+
+
 def assert_table_group_payload_contract(
     payload: dict,
     *,
@@ -696,6 +715,39 @@ def test_list_order_items_default_includes_voided(
     assert str(active_served.id) in ids
     assert str(voided_item.id) in ids
     assert "table_code" in payload[0]
+    assert payload[0]["kind"] in {"MAIN", "MODIFIER"}
+    assert "parent_order_item_id" in payload[0]
+    assert "modifier_group_name_snap" in payload[0]
+    assert "modifier_option_label_snap" in payload[0]
+
+
+def test_list_order_items_includes_modifier_relationship_fields(
+    client: TestClient,
+    db_session: Session,
+    waiter_auth_header: dict[str, str],
+) -> None:
+    table = seed_table(db_session, "API_T_MOD")
+    group_id = client.post(f"/tables/{table.id}/start-service", headers=waiter_auth_header).json()["id"]
+    main_item = seed_order_item(db_session, group_id, table.id)
+    child_item = seed_modifier_child_item(db_session, parent_order_item=main_item)
+
+    response = client.get(f"/table-groups/{group_id}/order-items", headers=waiter_auth_header)
+
+    assert response.status_code == 200
+    rows = response.json()
+    row_by_id = {row["id"]: row for row in rows}
+
+    main_row = row_by_id[str(main_item.id)]
+    assert main_row["kind"] == "MAIN"
+    assert main_row["parent_order_item_id"] is None
+    assert main_row["modifier_group_name_snap"] is None
+    assert main_row["modifier_option_label_snap"] is None
+
+    child_row = row_by_id[str(child_item.id)]
+    assert child_row["kind"] == "MODIFIER"
+    assert child_row["parent_order_item_id"] == str(main_item.id)
+    assert child_row["modifier_group_name_snap"] == "Add-on"
+    assert child_row["modifier_option_label_snap"] == "Pork Crackling"
 
 
 def test_list_order_items_served_filters(

@@ -74,7 +74,7 @@ def test_audit_event_recorded_for_void(
         f"/tables/{table.id}/orders/confirm",
         json={
             "idempotency_key": "audit-order-1",
-            "items": [{"menu_item_id": menu_item["id"], "quantity": 1}],
+            "items": [{"client_line_id": "line-1", "menu_item_id": menu_item["id"]}],
         },
         headers=waiter_auth_header,
     ).json()
