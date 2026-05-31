@@ -93,9 +93,14 @@ def create_duplicate_print_event(
     db.flush()
 
 
-def get_order_item_print_payload(db: Session, order_item_id: UUID) -> tuple[str, str | None, str] | None:
+def get_order_item_print_payload(db: Session, order_item_id: UUID) -> dict | None:
     stmt = (
-        select(OrderItem.menu_item_name_snap, OrderItem.note_snap, PhysicalTable.table_code)
+        select(
+            OrderItem.kind,
+            OrderItem.menu_item_name_snap,
+            OrderItem.note_snap,
+            PhysicalTable.table_code,
+        )
         .select_from(OrderItem)
         .join(PhysicalTable, OrderItem.physical_table_id == PhysicalTable.id)
         .where(OrderItem.id == order_item_id)
@@ -103,7 +108,43 @@ def get_order_item_print_payload(db: Session, order_item_id: UUID) -> tuple[str,
     row = db.execute(stmt).one_or_none()
     if not row:
         return None
-    return row[0], row[1], row[2]
+
+    kind = row[0]
+    payload = {
+        "menu_item_name": row[1],
+        "note": row[2],
+        "table_code": row[3],
+        "modifier_groups": [],
+    }
+
+    if kind != "MAIN":
+        return payload
+
+    modifier_rows = db.execute(
+        select(
+            OrderItem.modifier_group_name_snap,
+            OrderItem.modifier_option_label_snap,
+        )
+        .where(OrderItem.parent_order_item_id == order_item_id)
+        .where(OrderItem.kind == "MODIFIER")
+        .where(OrderItem.status == "ACTIVE")
+        .order_by(OrderItem.created_at.asc(), OrderItem.id.asc())
+    ).all()
+
+    group_labels: dict[str, list[str]] = {}
+    group_order: list[str] = []
+    for group_name, option_label in modifier_rows:
+        if not group_name or not option_label:
+            continue
+        if group_name not in group_labels:
+            group_labels[group_name] = []
+            group_order.append(group_name)
+        group_labels[group_name].append(option_label)
+    payload["modifier_groups"] = [
+        {"group_name": group_name, "option_labels": tuple(group_labels[group_name])}
+        for group_name in group_order
+    ]
+    return payload
 
 
 def get_order_item_audit_payload(

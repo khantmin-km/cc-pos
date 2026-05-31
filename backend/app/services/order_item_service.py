@@ -4,7 +4,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.printing import KitchenTicketItem, print_kitchen_ticket
+from app.printing import KitchenTicketItem, KitchenTicketModifierGroup, print_kitchen_ticket
 from app.repositories import order_item_repo
 from app.services import audit_service
 from app.services.errors import ConflictError, InvalidStateError, NotFoundError
@@ -114,14 +114,21 @@ def reprint_order_item(db: Session, order_item_id: UUID, *, actor=None) -> None:
         payload = order_item_repo.get_order_item_print_payload(db, order_item_id)
         if not payload:
             raise NotFoundError("OrderItem not found")
-        menu_item_name, note, table_code = payload
+        modifier_groups = tuple(
+            KitchenTicketModifierGroup(
+                group_name=group["group_name"],
+                option_labels=group["option_labels"],
+            )
+            for group in payload["modifier_groups"]
+        )
         if print_kitchen_ticket(
             [
                 KitchenTicketItem(
                     order_item_id=order_item_id,
-                    table_code=table_code,
-                    menu_item_name=menu_item_name,
-                    note=note,
+                    table_code=payload["table_code"],
+                    menu_item_name=payload["menu_item_name"],
+                    note=payload["note"],
+                    modifier_groups=modifier_groups,
                 )
             ]
         ):

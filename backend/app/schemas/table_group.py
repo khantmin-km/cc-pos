@@ -46,10 +46,14 @@ class TableGroupOrderItemResponse(BaseModel):
 
     id: UUID
     order_id: UUID
+    kind: str
+    parent_order_item_id: UUID | None
     physical_table_id: UUID
     table_code: str
     menu_item_id: UUID | None
     menu_item_name: str
+    modifier_group_name_snap: str | None
+    modifier_option_label_snap: str | None
     unit_price: Decimal
     note: str | None
     status: str

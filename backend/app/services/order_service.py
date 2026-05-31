@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.printing import KitchenTicketItem, print_kitchen_ticket
+from app.printing import KitchenTicketItem, KitchenTicketModifierGroup, print_kitchen_ticket
 from app.repositories import menu_item_repo, modifier_repo, order_repo, physical_table_repo, table_group_repo
 from app.schemas.order import OrderConfirmItemRequest
 from app.services import audit_service
@@ -211,6 +211,27 @@ def _collect_modifier_validation_errors(db: Session, items: list[OrderConfirmIte
     return errors, resolved_lines
 
 
+def _build_ticket_modifier_groups(resolved_modifiers: list[dict]) -> tuple[KitchenTicketModifierGroup, ...]:
+    grouped_labels: dict[UUID, list[str]] = {}
+    group_names: dict[UUID, str] = {}
+    group_order: list[UUID] = []
+    for modifier in resolved_modifiers:
+        group_id = modifier["modifier_group_id"]
+        group_name = modifier["modifier_group_name"]
+        if group_id not in grouped_labels:
+            grouped_labels[group_id] = []
+            group_names[group_id] = group_name
+            group_order.append(group_id)
+        grouped_labels[group_id].append(modifier["option_label"])
+    return tuple(
+        KitchenTicketModifierGroup(
+            group_name=group_names[group_id],
+            option_labels=tuple(grouped_labels[group_id]),
+        )
+        for group_id in group_order
+    )
+
+
 def confirm_order(
     db: Session,
     physical_table_id: UUID,
@@ -273,16 +294,18 @@ def confirm_order(
                     kind=MAIN,
                 )
                 created_item_ids.append(created_item.id)
+                line_modifiers = resolved_line_modifiers.get(line.client_line_id, [])
                 ticket_items.append(
                     KitchenTicketItem(
                         order_item_id=created_item.id,
                         table_code=table.table_code,
                         menu_item_name=name_snap,
                         note=line.note,
+                        modifier_groups=_build_ticket_modifier_groups(line_modifiers),
                     )
                 )
 
-                for modifier in resolved_line_modifiers.get(line.client_line_id, []):
+                for modifier in line_modifiers:
                     modifier_item = order_repo.create_order_item(
                         db=db,
                         order_id=order.id,
@@ -298,14 +321,6 @@ def confirm_order(
                         modifier_option_label_snap=modifier["option_label"],
                     )
                     created_item_ids.append(modifier_item.id)
-                    ticket_items.append(
-                        KitchenTicketItem(
-                            order_item_id=modifier_item.id,
-                            table_code=table.table_code,
-                            menu_item_name=modifier["option_label"],
-                            note=None,
-                        )
-                    )
 
             if print_kitchen_ticket(ticket_items):
                 order_repo.create_original_print_events(
