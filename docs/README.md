@@ -8,6 +8,7 @@ These files are the current, authoritative reference for the project domain mode
 - roles-and-actions.md
 - system-state.md
 - api-contracts.md
+- api-reference-planned-modifiers.md
 - modifiers-frontend-integration.md
 - er-diagram.md
 - database-schema.md

@@ -1,6 +1,12 @@
 # API Reference (Current)
 
 Planned (not yet implemented): see `docs/modifiers-frontend-integration.md` for upcoming modifier and order-confirm payload changes.
+Detailed planned endpoint schemas: `docs/api-reference-planned-modifiers.md`.
+Planned change highlights:
+- new modifier catalog endpoints
+- new menu-item modifier configuration endpoints
+- order confirm request removes `quantity` and requires `client_line_id` per line
+- structured modifier validation errors keyed by `client_line_id`
 
 All endpoints require `Authorization: Bearer <session_token>` unless noted otherwise.
 

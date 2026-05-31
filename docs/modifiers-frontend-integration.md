@@ -3,72 +3,101 @@
 Status: Spec-locked and approved for implementation planning.  
 Implementation status: Not implemented in backend yet.
 
-This document explains the backend contract changes that frontend should prepare for.
+This document is the shared contract guide for frontend adaptation.
 
-## 1. Why This Change Exists
+## 1. Core Domain Model
 
-We are adding structured modifiers so:
-- Kitchen tickets show modifiers under the correct main dish.
-- Modifier price deltas are included in bill totals automatically.
-- Corrections stay consistent with current `VOID + ADD` flow.
+Three layers:
 
-## 2. Core Domain Decisions
+1. Modifier Catalog (global)
+- `ModifierGroup` (e.g., Add-on, Noodle Type, Spicy Level)
+- `ModifierOption` (e.g., Fried Egg, Glass Noodle, Medium)
+
+2. Menu-item Modifier Configuration
+- Attach groups to a menu item
+- Configure `min_select` / `max_select` per attached group
+- Select allowed option subset per attached group
+
+3. Order Confirmation Selection
+- Waiter submits selections per main line
+- Backend validates and persists parent + child order-items
+
+## 2. Hard Rules (Locked)
 
 - `MenuItem` and modifier catalog are separate entities.
-- Modifier catalog uses:
-  - `ModifierGroup` (template group, e.g. Add-on, Spicy Level)
-  - `ModifierOption` (options under group, e.g. Fried Egg, Medium)
-- Menu-item-specific config uses:
-  - group attachment to menu item
-  - `min_select` / `max_select` per attached group
-  - allowed option subset per attached group
-- Modifier pricing comes from global `ModifierOption.price_delta` only.
-- Order correction policy:
-  - direct void of modifier child item is forbidden
-  - void parent main item, then add corrected line (`VOID + ADD`)
+- Every `ModifierOption` belongs to exactly one `ModifierGroup`.
+- Options cannot exist without a group.
+- Options are not attached directly to menu items without group context.
+- Modifier price comes only from global `ModifierOption.price_delta`.
+- Modifier child direct void is forbidden.
+- Correction flow is parent main-item `VOID + ADD`.
+- Confirm payload uses one submitted line = one persisted main order item.
+- No `quantity` in confirm payload.
+- No backward compatibility mode for legacy aggregated quantity lines.
 
-## 3. Order Confirm Contract Change (Important)
+## 3. Archive Semantics (No Hard Delete)
 
-Current backend accepts aggregated quantity and expands server-side.
+For `ModifierGroup` and `ModifierOption`:
+- archive by setting inactive status (`is_active=false`)
+- no hard delete
+- no cascading physical unlink
 
-New contract is a hard cutover:
-- frontend sends one request line per main-item instance
-- no aggregated quantity lines
-- no backward compatibility fallback
+Effects:
+- inactive groups/options cannot be used for future confirms
+- existing link rows are kept
+- historical order snapshots remain unchanged
 
-Example (allowed):
+Archiving a group does not automatically archive its options.
+
+## 4. Planned Endpoints
+
+Global modifier catalog:
+
+- `GET /modifier-groups`
+- `POST /modifier-groups`
+- `GET /modifier-groups/{modifierGroupId}`
+- `PATCH /modifier-groups/{modifierGroupId}`
+- `GET /modifier-groups/{modifierGroupId}/options`
+- `POST /modifier-groups/{modifierGroupId}/options`
+- `GET /modifier-options/{modifierOptionId}`
+- `PATCH /modifier-options/{modifierOptionId}`
+
+Menu-item modifier configuration:
+
+- `GET /menu-items/{menuItemId}/modifiers`
+- `PUT /menu-items/{menuItemId}/modifiers`
+
+`PUT` is a full replacement payload for one menu item’s modifier config.
+
+## 5. Menu-item Modifier Config Payload (Planned)
 
 ```json
 {
-  "idempotency_key": "key-1",
+  "groups": [
+    {
+      "modifier_group_id": "uuid",
+      "min_select": 1,
+      "max_select": 3,
+      "option_ids": ["uuid", "uuid"]
+    }
+  ]
+}
+```
+
+## 6. Order Confirm Payload (Planned)
+
+```json
+{
+  "idempotency_key": "string",
   "items": [
     {
       "client_line_id": "line-1",
-      "menu_item_id": "thai-noodle-id",
-      "note": "less soup",
+      "menu_item_id": "uuid",
+      "note": "string|null",
       "modifier_selections": [
         {
-          "modifier_group_id": "noodle-type-group-id",
-          "selected_option_ids": ["glass-noodle-id"]
-        },
-        {
-          "modifier_group_id": "meat-type-group-id",
-          "selected_option_ids": ["braised-pork-id", "minced-chicken-id"]
-        }
-      ]
-    },
-    {
-      "client_line_id": "line-2",
-      "menu_item_id": "thai-noodle-id",
-      "note": "less soup",
-      "modifier_selections": [
-        {
-          "modifier_group_id": "noodle-type-group-id",
-          "selected_option_ids": ["glass-noodle-id"]
-        },
-        {
-          "modifier_group_id": "meat-type-group-id",
-          "selected_option_ids": ["braised-pork-id", "minced-chicken-id"]
+          "modifier_group_id": "uuid",
+          "selected_option_ids": ["uuid", "uuid"]
         }
       ]
     }
@@ -76,97 +105,84 @@ Example (allowed):
 }
 ```
 
-Example (rejected):
+Notes:
+- `client_line_id` is required on each line.
+- `items[]` must be expanded lines. Do not send aggregated `quantity`.
+
+## 7. Validation Errors (Planned)
+
+When modifier validation fails:
 
 ```json
 {
-  "idempotency_key": "key-2",
-  "items": [
+  "code": "MODIFIER_VALIDATION_FAILED",
+  "message": "Modifier validation failed",
+  "details": [
     {
-      "menu_item_id": "thai-noodle-id",
-      "quantity": 2
+      "client_line_id": "line-1",
+      "modifier_group_id": "uuid",
+      "reason": "MISSING_REQUIRED_SELECTION"
     }
   ]
 }
 ```
 
-## 4. Validation Rules Frontend Must Respect
+Supported `reason` values:
+- `MISSING_REQUIRED_SELECTION`
+- `TOO_MANY_SELECTIONS`
+- `OPTION_NOT_ALLOWED`
+- `OPTION_NOT_AVAILABLE`
+- `GROUP_NOT_CONFIGURED`
+- `DUPLICATE_SELECTION`
+- `DUPLICATE_GROUP_SELECTION`
 
-For each main line:
-- selected options must belong to allowed option subset for that menu item/group
-- selection count per group must satisfy `min_select <= count <= max_select`
-- inactive group/option is rejected at confirm time
+Frontend should map `details[]` back to line-level UI errors.
 
-Draft safety note:
-- if admin deactivates/changes menu or modifier options while waiter is drafting,
-  confirm may reject; frontend should re-fetch menu/modifier config and prompt reselection.
+## 8. Kitchen Printing Shape
 
-## 5. Kitchen Ticket Shape
-
-Kitchen output must stay nested by parent line, with group labels:
+Kitchen output must be nested and group-labeled:
 
 ```text
 Thai Noodle
   Noodle Type: Glass Noodle
-  Meat Type: Braised Pork
-  Meat Type: Minced Chicken
+  Meat Type: Braised Pork, Minced Chicken
   Add-on: Pork Crackling
   Spicy Level: Medium
 ```
 
-Flattened output is not acceptable.
+Modifier groups with many options should wrap safely for printer width.
 
-## 6. Billing Behavior
+## 9. Billing Behavior
 
-Each selected modifier option becomes a child order item with its own `unit_price_snap` delta.
+Each selected modifier option becomes a child order-item.
 
-Billing stays generic:
-- sum of all `ACTIVE` order items
-- includes both main and modifier child items
+Billing remains generic:
+- sum all `ACTIVE` order-items
+- includes both main and modifier child rows
 
-No frontend-side price math is required for final authority.
+No frontend-side final price authority is required.
 
-## 7. Admin UI Workflow Recommendation
+## 10. Frontend UI Guidance
 
-Recommended flow:
+Recommended screens:
 
-1. Manage global modifier catalog
-- create/update `ModifierGroup`
-- create/update `ModifierOption` under group
+1. Modifier Catalog
+- create/archive groups
+- create/archive options under selected group
 
-2. Configure each menu item
-- attach groups to menu item
-- set `min_select`/`max_select`
+2. Menu Item Editor (Modifiers section)
+- attach groups
+- set `min_select` / `max_select`
 - choose allowed options subset
 
-This is designed so the same group can be reused with different allowed subsets by menu item.
+Menu-item editor configures relationships only; it does not create group/option catalog entries inline.
 
-## 8. Endpoint Strategy (Planned)
+## 11. Frontend Adaptation Checklist
 
-Planned backend shape:
-
-- Global catalog CRUD:
-  - group endpoints
-  - option endpoints
-- Per-menu-item configuration:
-  - bulk replace endpoint for one menu item's modifier config
-
-Reason:
-- frontend save UX is simpler with one payload for menu-item config
-- catalog remains explicit and reusable
-
-## 9. What Stays The Same
-
-- Confirm is still idempotent with `idempotency_key`.
-- OrderItems remain the unit of billing and history.
-- Notes remain available for free-text customer requests.
-- `BILL_REQUESTED` and later still block order-item mutation.
-
-## 10. Frontend Adaptation Checklist
-
-- Stop sending `quantity` in order confirm lines.
-- Build per-line modifier selection UI and payload.
-- Enforce `min_select`/`max_select` on client side before submit.
-- Handle confirm-time rejections and refresh modifier config.
-- Show nested parent+modifier lines in order review UI.
-- Keep note input available regardless of modifiers.
+- Remove confirm-line `quantity`.
+- Send expanded lines with `client_line_id`.
+- Build per-line modifier selection state.
+- Enforce `min_select` / `max_select` before submit.
+- Handle `MODIFIER_VALIDATION_FAILED` with line-level highlighting.
+- Refresh config on confirm rejection when catalog changed during draft.
+- Keep note input available regardless of modifier presence.

@@ -3,6 +3,22 @@
 ## Planned Contract Update (Not Implemented Yet)
 - Modifier support and order-confirm line expansion are planned next.
 - Frontend integration details: `docs/modifiers-frontend-integration.md`
+- Planned API shapes: `docs/api-reference-planned-modifiers.md`
+- Planned modifier endpoints:
+- `GET /modifier-groups`
+- `POST /modifier-groups`
+- `GET /modifier-groups/{modifierGroupId}`
+- `PATCH /modifier-groups/{modifierGroupId}`
+- `GET /modifier-groups/{modifierGroupId}/options`
+- `POST /modifier-groups/{modifierGroupId}/options`
+- `GET /modifier-options/{modifierOptionId}`
+- `PATCH /modifier-options/{modifierOptionId}`
+- `GET /menu-items/{menuItemId}/modifiers`
+- `PUT /menu-items/{menuItemId}/modifiers`
+- Planned order-confirm payload change:
+- remove `quantity`
+- require one submitted line = one persisted main order-item
+- require `client_line_id` on each line
 
 ## Enumerations
 ### TableGroupState
