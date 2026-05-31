@@ -3,7 +3,8 @@
 Status: Spec-locked and approved for implementation planning.  
 Implementation status:
 - Implemented: modifier catalog endpoints, menu-item modifier config endpoints.
-- Planned next: modifier-aware order confirm payload and validation error response.
+- Implemented: modifier-aware order confirm payload and validation error response.
+- Planned next: grouped kitchen print rendering and table-group order-items response shape enhancements.
 
 This document is the shared contract guide for frontend adaptation.
 
@@ -86,7 +87,7 @@ Menu-item modifier configuration:
 }
 ```
 
-## 6. Order Confirm Payload (Planned)
+## 6. Order Confirm Payload (Implemented)
 
 ```json
 {
@@ -111,7 +112,7 @@ Notes:
 - `client_line_id` is required on each line.
 - `items[]` must be expanded lines. Do not send aggregated `quantity`.
 
-## 7. Validation Errors (Planned)
+## 7. Validation Errors (Implemented)
 
 When modifier validation fails:
 
@@ -140,9 +141,9 @@ Supported `reason` values:
 
 Frontend should map `details[]` back to line-level UI errors.
 
-## 8. Kitchen Printing Shape
+## 8. Kitchen Printing Shape (Planned Next)
 
-Kitchen output must be nested and group-labeled:
+Target kitchen output is nested and group-labeled:
 
 ```text
 Thai Noodle

@@ -45,6 +45,28 @@ def seed_active_order_item(
     return group_id, table.id, item.id
 
 
+def seed_main_with_modifier_child(db: Session) -> tuple[UUID, UUID, UUID, UUID]:
+    group_id, table_id, main_item_id = seed_active_order_item(db, table_code="OI_MODIFIER")
+    main_item = db.get(OrderItem, main_item_id)
+    assert main_item is not None
+    child = OrderItem(
+        order_id=main_item.order_id,
+        parent_order_item_id=main_item_id,
+        physical_table_id=table_id,
+        menu_item_id=None,
+        menu_item_name_snap="Pork Crackling",
+        modifier_group_name_snap="Add-on",
+        modifier_option_label_snap="Pork Crackling",
+        unit_price_snap=Decimal("10.00"),
+        status="ACTIVE",
+        kind="MODIFIER",
+    )
+    db.add(child)
+    db.commit()
+    db.refresh(child)
+    return group_id, table_id, main_item_id, child.id
+
+
 def test_void_order_item_success_and_idempotent(db_session: Session) -> None:
     _, _, order_item_id = seed_active_order_item(db_session)
 
@@ -71,6 +93,26 @@ def test_void_order_item_rejects_served_item(db_session: Session) -> None:
 
     with pytest.raises(ConflictError):
         order_item_service.void_order_item(db_session, order_item_id)
+
+
+def test_void_main_order_item_cascades_modifier_children(db_session: Session) -> None:
+    _, _, main_item_id, child_item_id = seed_main_with_modifier_child(db_session)
+
+    order_item_service.void_order_item(db_session, main_item_id)
+
+    main_item = db_session.get(OrderItem, main_item_id)
+    child_item = db_session.get(OrderItem, child_item_id)
+    assert main_item is not None
+    assert child_item is not None
+    assert main_item.status == "VOIDED"
+    assert child_item.status == "VOIDED"
+
+
+def test_void_modifier_child_is_forbidden(db_session: Session) -> None:
+    _, _, _, child_item_id = seed_main_with_modifier_child(db_session)
+
+    with pytest.raises(ConflictError):
+        order_item_service.void_order_item(db_session, child_item_id)
 
 
 def test_mark_served_success_and_idempotent(db_session: Session) -> None:

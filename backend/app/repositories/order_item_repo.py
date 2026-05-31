@@ -16,14 +16,14 @@ from app.models.table_group import TableGroup
 
 def get_order_item_operation_context(
     db: Session, order_item_id: UUID, *, for_update: bool = False
-) -> tuple[str, str, datetime | None] | None:
+) -> tuple[str, str, datetime | None, str, UUID | None] | None:
     served_at_subquery = (
         select(OrderItemServing.served_at)
         .where(OrderItemServing.order_item_id == OrderItem.id)
         .scalar_subquery()
     )
     stmt = (
-        select(OrderItem.status, TableGroup.state, served_at_subquery)
+        select(OrderItem.status, TableGroup.state, served_at_subquery, OrderItem.kind, OrderItem.parent_order_item_id)
         .select_from(OrderItem)
         .join(Order, OrderItem.order_id == Order.id)
         .join(TableGroup, Order.table_group_id == TableGroup.id)
@@ -34,7 +34,7 @@ def get_order_item_operation_context(
     row = db.execute(stmt).one_or_none()
     if not row:
         return None
-    return row[0], row[1], row[2]
+    return row[0], row[1], row[2], row[3], row[4]
 
 
 def mark_order_item_voided_if_active(db: Session, order_item_id: UUID, *, voided_at: datetime) -> bool:
@@ -47,6 +47,21 @@ def mark_order_item_voided_if_active(db: Session, order_item_id: UUID, *, voided
     result = db.execute(stmt)
     db.flush()
     return result.rowcount == 1
+
+
+def mark_child_modifiers_voided_if_active(
+    db: Session, parent_order_item_id: UUID, *, voided_at: datetime
+) -> int:
+    stmt = (
+        update(OrderItem)
+        .where(OrderItem.parent_order_item_id == parent_order_item_id)
+        .where(OrderItem.kind == "MODIFIER")
+        .where(OrderItem.status == "ACTIVE")
+        .values(status="VOIDED", voided_at=voided_at)
+    )
+    result = db.execute(stmt)
+    db.flush()
+    return int(result.rowcount or 0)
 
 
 def mark_order_item_served_once(db: Session, order_item_id: UUID, *, served_at: datetime) -> bool:

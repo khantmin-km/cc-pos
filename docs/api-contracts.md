@@ -1,13 +1,13 @@
 # API Contracts (Phase 1)
 
 ## Planned Contract Update (Not Implemented Yet)
-- Modifier support and order-confirm line expansion are planned next.
+- Remaining modifier work:
+- table-group order-items response will include modifier relationship fields
+- kitchen print layout grouping by modifier group labels
 - Frontend integration details: `docs/modifiers-frontend-integration.md`
 - Planned API shapes: `docs/api-reference-planned-modifiers.md`
 - Planned order-confirm payload change:
-- remove `quantity`
-- require one submitted line = one persisted main order-item
-- require `client_line_id` on each line
+- already implemented in current API
 
 ## Enumerations
 ### TableGroupState
@@ -96,7 +96,7 @@ Split an OPEN TableGroup only when it has zero OrderItems.
 Confirm an Order (no server-side drafts).
 
 **Request (conceptual):**
-- items[] (menu_item_id, quantity)
+- items[] (client_line_id, menu_item_id, note, modifier_selections[])
 - idempotency_key
 
 **Effects:**

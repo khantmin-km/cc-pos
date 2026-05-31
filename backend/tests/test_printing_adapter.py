@@ -45,7 +45,10 @@ def test_confirm_order_skips_print_events_when_adapter_fails(db_session: Session
         db=db_session,
         physical_table_id=table.id,
         idempotency_key="print-fail-1",
-        items=[OrderConfirmItemRequest(menu_item_id=item.id, quantity=2)],
+        items=[
+            OrderConfirmItemRequest(client_line_id="line-1", menu_item_id=item.id),
+            OrderConfirmItemRequest(client_line_id="line-2", menu_item_id=item.id),
+        ],
     )
 
     assert order_id is not None

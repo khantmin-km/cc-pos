@@ -103,7 +103,7 @@ def test_retire_menu_item_referenced_by_order_is_allowed(db_session: Session) ->
         db=db_session,
         physical_table_id=table.id,
         idempotency_key="menu-retire-key",
-        items=[OrderConfirmItemRequest(menu_item_id=item.id, quantity=1)],
+        items=[OrderConfirmItemRequest(client_line_id="line-1", menu_item_id=item.id)],
     )
 
     retired = menu_item_service.retire_menu_item(db_session, item.id)

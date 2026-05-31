@@ -3,8 +3,8 @@
 Modifier catalog and menu-item modifier configuration endpoints are implemented.
 Planned (not yet implemented): modifier-aware order confirm payload and validation error contract (see `docs/modifiers-frontend-integration.md` and `docs/api-reference-planned-modifiers.md`).
 Planned change highlights:
-- order confirm request removes `quantity` and requires `client_line_id` per line
-- structured modifier validation errors keyed by `client_line_id`
+- table-group order-items response will add modifier hierarchy fields
+- kitchen print rendering will group modifiers by group label
 
 All endpoints require `Authorization: Bearer <session_token>` unless noted otherwise.
 
@@ -191,9 +191,15 @@ Request:
   "idempotency_key": "string",
   "items": [
     {
+      "client_line_id": "string",
       "menu_item_id": "uuid",
-      "quantity": 1,
-      "note": "string|null"
+      "note": "string|null",
+      "modifier_selections": [
+        {
+          "modifier_group_id": "uuid",
+          "selected_option_ids": ["uuid"]
+        }
+      ]
     }
   ]
 }
@@ -204,6 +210,21 @@ Response:
   "order_id": "uuid",
   "table_group_id": "uuid",
   "order_item_ids": ["uuid"]
+}
+```
+
+Validation error response (modifier rules):
+```json
+{
+  "code": "MODIFIER_VALIDATION_FAILED",
+  "message": "Modifier validation failed",
+  "details": [
+    {
+      "client_line_id": "string",
+      "modifier_group_id": "uuid",
+      "reason": "MISSING_REQUIRED_SELECTION|TOO_MANY_SELECTIONS|OPTION_NOT_ALLOWED|OPTION_NOT_AVAILABLE|GROUP_NOT_CONFIGURED|DUPLICATE_SELECTION|DUPLICATE_GROUP_SELECTION"
+    }
+  ]
 }
 ```
 

@@ -59,6 +59,29 @@ def seed_active_order_item(
     return str(group_id), str(item.id)
 
 
+def seed_main_with_modifier_child(db: Session) -> tuple[str, str, str]:
+    group_id, main_item_id = seed_active_order_item(db, table_code="OIA_MOD")
+    main_item = db.get(OrderItem, UUID(main_item_id))
+    assert main_item is not None
+
+    child = OrderItem(
+        order_id=main_item.order_id,
+        parent_order_item_id=main_item.id,
+        physical_table_id=main_item.physical_table_id,
+        menu_item_id=None,
+        menu_item_name_snap="Pork Crackling",
+        modifier_group_name_snap="Add-on",
+        modifier_option_label_snap="Pork Crackling",
+        unit_price_snap=Decimal("10.00"),
+        status="ACTIVE",
+        kind="MODIFIER",
+    )
+    db.add(child)
+    db.commit()
+    db.refresh(child)
+    return group_id, main_item_id, str(child.id)
+
+
 def test_void_order_item_api_success_and_retry(
     client: TestClient,
     db_session: Session,
@@ -88,6 +111,33 @@ def test_void_order_item_api_rejects_served(
     response = client.post(f"/order-items/{order_item_id}/void", headers=admin_auth_header)
     assert response.status_code == 409
     assert response.json()["detail"] == "Cannot void a served OrderItem"
+
+
+def test_void_main_order_item_cascades_modifier_children_api(
+    client: TestClient,
+    db_session: Session,
+    admin_auth_header: dict[str, str],
+) -> None:
+    _, main_item_id, child_item_id = seed_main_with_modifier_child(db_session)
+
+    response = client.post(f"/order-items/{main_item_id}/void", headers=admin_auth_header)
+    assert response.status_code == 204
+
+    child = db_session.get(OrderItem, UUID(child_item_id))
+    assert child is not None
+    assert child.status == "VOIDED"
+
+
+def test_void_modifier_child_is_forbidden_api(
+    client: TestClient,
+    db_session: Session,
+    admin_auth_header: dict[str, str],
+) -> None:
+    _, _, child_item_id = seed_main_with_modifier_child(db_session)
+
+    response = client.post(f"/order-items/{child_item_id}/void", headers=admin_auth_header)
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Cannot void MODIFIER OrderItem directly"
 
 
 def test_mark_served_api_success_and_retry(

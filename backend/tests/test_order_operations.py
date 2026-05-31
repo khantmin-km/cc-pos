@@ -56,8 +56,9 @@ def test_confirm_order_creates_order_items_and_print_events(db_session: Session)
         physical_table_id=table.id,
         idempotency_key="order-key-1",
         items=[
-            OrderConfirmItemRequest(menu_item_id=item_a.id, quantity=2, note=note),
-            OrderConfirmItemRequest(menu_item_id=item_b.id, quantity=1),
+            OrderConfirmItemRequest(client_line_id="line-1", menu_item_id=item_a.id, note=note),
+            OrderConfirmItemRequest(client_line_id="line-2", menu_item_id=item_a.id, note=note),
+            OrderConfirmItemRequest(client_line_id="line-3", menu_item_id=item_b.id),
         ],
     )
 
@@ -94,7 +95,7 @@ def test_confirm_order_rejects_free_table(db_session: Session) -> None:
             db=db_session,
             physical_table_id=table.id,
             idempotency_key="order-key-2",
-            items=[OrderConfirmItemRequest(menu_item_id=item.id, quantity=1)],
+            items=[OrderConfirmItemRequest(client_line_id="line-1", menu_item_id=item.id)],
         )
 
 
@@ -109,7 +110,7 @@ def test_confirm_order_rejects_non_open_group(db_session: Session) -> None:
             db=db_session,
             physical_table_id=table.id,
             idempotency_key="order-key-3",
-            items=[OrderConfirmItemRequest(menu_item_id=item.id, quantity=1)],
+            items=[OrderConfirmItemRequest(client_line_id="line-1", menu_item_id=item.id)],
         )
 
 
@@ -122,7 +123,7 @@ def test_confirm_order_rejects_missing_menu_items(db_session: Session) -> None:
             db=db_session,
             physical_table_id=table.id,
             idempotency_key="order-key-4",
-            items=[OrderConfirmItemRequest(menu_item_id=uuid4(), quantity=1)],
+            items=[OrderConfirmItemRequest(client_line_id="line-1", menu_item_id=uuid4())],
         )
 
 
@@ -136,7 +137,7 @@ def test_confirm_order_rejects_unavailable_menu_items(db_session: Session) -> No
             db=db_session,
             physical_table_id=table.id,
             idempotency_key="order-key-5",
-            items=[OrderConfirmItemRequest(menu_item_id=item.id, quantity=1)],
+            items=[OrderConfirmItemRequest(client_line_id="line-1", menu_item_id=item.id)],
         )
 
 
@@ -149,13 +150,19 @@ def test_confirm_order_idempotency_returns_same_result(db_session: Session) -> N
         db=db_session,
         physical_table_id=table.id,
         idempotency_key="same-key",
-        items=[OrderConfirmItemRequest(menu_item_id=item.id, quantity=2)],
+        items=[
+            OrderConfirmItemRequest(client_line_id="line-1", menu_item_id=item.id),
+            OrderConfirmItemRequest(client_line_id="line-2", menu_item_id=item.id),
+        ],
     )
     second = order_service.confirm_order(
         db=db_session,
         physical_table_id=table.id,
         idempotency_key="same-key",
-        items=[OrderConfirmItemRequest(menu_item_id=item.id, quantity=2)],
+        items=[
+            OrderConfirmItemRequest(client_line_id="line-1", menu_item_id=item.id),
+            OrderConfirmItemRequest(client_line_id="line-2", menu_item_id=item.id),
+        ],
     )
 
     assert first == second
