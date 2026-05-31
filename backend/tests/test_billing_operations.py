@@ -39,8 +39,9 @@ def seed_order_item(db: Session, table_group_id, physical_table_id, price: str) 
     return item
 
 
-def seed_user(db: Session, username: str = "admin") -> User:
-    user = User(id=uuid4(), username=username, pin_hash="x", role="ADMIN", active=True)
+def seed_user(db: Session, username: str | None = None) -> User:
+    resolved_username = username or f"admin-{uuid4()}"
+    user = User(id=uuid4(), username=resolved_username, pin_hash="x", role="ADMIN", active=True)
     db.add(user)
     db.commit()
     db.refresh(user)

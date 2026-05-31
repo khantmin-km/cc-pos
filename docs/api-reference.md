@@ -1,5 +1,7 @@
 # API Reference (Current)
 
+Planned (not yet implemented): see `docs/modifiers-frontend-integration.md` for upcoming modifier and order-confirm payload changes.
+
 All endpoints require `Authorization: Bearer <session_token>` unless noted otherwise.
 
 ## Auth

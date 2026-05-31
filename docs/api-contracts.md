@@ -1,5 +1,9 @@
 # API Contracts (Phase 1)
 
+## Planned Contract Update (Not Implemented Yet)
+- Modifier support and order-confirm line expansion are planned next.
+- Frontend integration details: `docs/modifiers-frontend-integration.md`
+
 ## Enumerations
 ### TableGroupState
 ```
