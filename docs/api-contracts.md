@@ -1,13 +1,12 @@
 # API Contracts (Phase 1)
 
-## Planned Contract Update (Not Implemented Yet)
-- Remaining modifier work:
-- table-group order-items response will include modifier relationship fields
-- kitchen print layout grouping by modifier group labels
+## Modifier Contract Status
+- Implemented:
+- modifier-aware order confirm payload (`client_line_id`, no `quantity`, `modifier_selections`)
+- structured modifier validation error payload
+- table-group order-items response modifier relationship fields
+- grouped kitchen print payload rendering by modifier group label
 - Frontend integration details: `docs/modifiers-frontend-integration.md`
-- Planned API shapes: `docs/api-reference-planned-modifiers.md`
-- Planned order-confirm payload change:
-- already implemented in current API
 
 ## Enumerations
 ### TableGroupState

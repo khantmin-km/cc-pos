@@ -1,10 +1,9 @@
 # API Reference (Planned Modifiers Contract)
 
 Status:
-- Implemented now: modifier catalog endpoints, menu-item modifier configuration endpoints, and modifier-aware order confirm payload/validation.
-- Planned next: table-group order-item shape extensions and grouped kitchen print rendering details.
+- Implemented now: modifier catalog endpoints, menu-item modifier configuration endpoints, modifier-aware order confirm payload/validation, table-group order-item shape extensions, and grouped kitchen print rendering details.
 
-This document defines the target API shapes for the modifiers feature, including both implemented and planned-next parts.
+This document records the target API shapes used while designing the modifiers feature.
 
 ## Auth
 

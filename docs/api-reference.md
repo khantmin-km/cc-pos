@@ -1,10 +1,6 @@
 # API Reference (Current)
 
-Modifier catalog and menu-item modifier configuration endpoints are implemented.
-Planned (not yet implemented): modifier-aware order confirm payload and validation error contract (see `docs/modifiers-frontend-integration.md` and `docs/api-reference-planned-modifiers.md`).
-Planned change highlights:
-- table-group order-items response will add modifier hierarchy fields
-- kitchen print rendering will group modifiers by group label
+Modifier catalog, menu-item modifier configuration, modifier-aware order confirm validation, table-group order-item relationship fields, and grouped modifier kitchen-print payload rendering are implemented.
 
 All endpoints require `Authorization: Bearer <session_token>` unless noted otherwise.
 
@@ -104,10 +100,14 @@ Response:
   {
     "id": "uuid",
     "order_id": "uuid",
+    "kind": "MAIN|MODIFIER",
+    "parent_order_item_id": "uuid|null",
     "physical_table_id": "uuid",
     "table_code": "string",
     "menu_item_id": "uuid|null",
     "menu_item_name": "string",
+    "modifier_group_name_snap": "string|null",
+    "modifier_option_label_snap": "string|null",
     "unit_price": "decimal",
     "note": "string|null",
     "status": "ACTIVE|VOIDED",

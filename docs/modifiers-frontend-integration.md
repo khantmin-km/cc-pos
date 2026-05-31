@@ -4,7 +4,7 @@ Status: Spec-locked and approved for implementation planning.
 Implementation status:
 - Implemented: modifier catalog endpoints, menu-item modifier config endpoints.
 - Implemented: modifier-aware order confirm payload and validation error response.
-- Planned next: grouped kitchen print rendering and table-group order-items response shape enhancements.
+- Implemented: grouped kitchen print payload rendering and table-group order-items response shape enhancements.
 
 This document is the shared contract guide for frontend adaptation.
 
@@ -72,7 +72,7 @@ Menu-item modifier configuration:
 
 `PUT` is a full replacement payload for one menu item’s modifier config.
 
-## 5. Menu-item Modifier Config Payload (Planned)
+## 5. Menu-item Modifier Config Payload (Implemented)
 
 ```json
 {
@@ -141,7 +141,7 @@ Supported `reason` values:
 
 Frontend should map `details[]` back to line-level UI errors.
 
-## 8. Kitchen Printing Shape (Planned Next)
+## 8. Kitchen Printing Shape (Implemented)
 
 Target kitchen output is nested and group-labeled:
 
@@ -155,7 +155,21 @@ Thai Noodle
 
 Modifier groups with many options should wrap safely for printer width.
 
-## 9. Billing Behavior
+## 9. Table-group Order-items Shape (Implemented, Flat)
+
+`GET /table-groups/{tableGroupId}/order-items` remains flat and includes modifier relationship fields:
+
+```json
+{
+  "id": "uuid",
+  "kind": "MAIN|MODIFIER",
+  "parent_order_item_id": "uuid|null",
+  "modifier_group_name_snap": "string|null",
+  "modifier_option_label_snap": "string|null"
+}
+```
+
+## 10. Billing Behavior
 
 Each selected modifier option becomes a child order-item.
 
@@ -165,7 +179,7 @@ Billing remains generic:
 
 No frontend-side final price authority is required.
 
-## 10. Frontend UI Guidance
+## 11. Frontend UI Guidance
 
 Recommended screens:
 
@@ -180,7 +194,7 @@ Recommended screens:
 
 Menu-item editor configures relationships only; it does not create group/option catalog entries inline.
 
-## 11. Frontend Adaptation Checklist
+## 12. Frontend Adaptation Checklist
 
 - Remove confirm-line `quantity`.
 - Send expanded lines with `client_line_id`.
