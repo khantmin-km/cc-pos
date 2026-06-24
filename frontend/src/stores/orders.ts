@@ -8,7 +8,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 import type { OrderItem, OrderConfirmRequest } from '@/types/pos'
-import { ordersApi, orderItemsApi } from '@/services/tablesApi'
+import { ordersApi, orderItemsApi, tablesApi } from '@/services/tablesApi'
+import type { PhysicalTable } from '@/types/pos'
 
 /**
  * Orders Store
@@ -137,9 +138,9 @@ export const useOrdersStore = defineStore('orders', () => {
 
     try {
       const request: OrderConfirmRequest = {
-        idempotencyKey: `order_${Date.now()}_${Math.random()}`,
+        idempotency_key: `order_${Date.now()}_${Math.random()}`,
         items: draftItems.value.map((item) => ({
-          menuItemId: item.menuItemId,
+          menu_item_id: item.menuItemId,
           quantity: item.quantity,
           notes: item.notes,
         })),
@@ -245,6 +246,36 @@ export const useOrdersStore = defineStore('orders', () => {
     }
   }
 
+  /**
+   * Fetch order items for a specific table
+   */
+  async function fetchOrderItems(tableId: string) {
+    loading.value = true
+    error.value = null
+
+    try {
+      // First get table to find its table group ID
+      const tablesResponse = await tablesApi.list()
+      const table: PhysicalTable | undefined = tablesResponse.find((t: PhysicalTable) => t.id === tableId)
+      
+      if (table?.current_table_group_id) {
+        // Use table group endpoint to get order items
+        const items = await orderItemsApi.getByTableGroup(table.current_table_group_id)
+        orderItems.value = items
+        console.log('[ORDERS] Fetched order items for table group:', table.current_table_group_id, items.length, 'items')
+      } else {
+        console.log('[ORDERS] Table has no group, no order items to fetch')
+        orderItems.value = []
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to fetch order items'
+      error.value = msg
+      console.error('Fetch failed:', e)
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     // State
     orderItems,
@@ -268,6 +299,7 @@ export const useOrdersStore = defineStore('orders', () => {
     voidOrderItem,
     markOrderItemServed,
     reprintOrderItem,
+    fetchOrderItems,
   }
 })
 

@@ -1,11 +1,10 @@
-export type RuntimeMode = 'live' | 'demo'
+export type RuntimeMode = 'live'
 
 const KEY = 'ccpos_runtime_mode'
 
 export function getRuntimeMode(): RuntimeMode {
-  const v = localStorage.getItem(KEY)
-  // Default to demo mode
-  return v === 'live' ? 'live' : 'demo'
+  // Always return live mode
+  return 'live'
 }
 
 export function setRuntimeMode(mode: RuntimeMode) {

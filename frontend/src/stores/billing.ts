@@ -8,7 +8,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 import type { BillBreakdown, BillAdjustment, BillAdjustmentCreateRequest } from '@/types/pos'
-import { billApi } from '@/services/tablesApi'
+import { billingApi } from '@/services/tablesApi'
 
 /**
  * Billing Store
@@ -39,7 +39,7 @@ export const useBillingStore = defineStore('billing', () => {
     error.value = null
 
     try {
-      currentBill.value = await billApi.getBillBreakdown(tableGroupId)
+      currentBill.value = await billingApi.getBill(tableGroupId)
       return currentBill.value
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to fetch bill'
@@ -61,7 +61,7 @@ export const useBillingStore = defineStore('billing', () => {
     error.value = null
 
     try {
-      const adjustment = await billApi.createAdjustment(tableGroupId, request)
+      const adjustment = await billingApi.addAdjustment(tableGroupId, request)
 
       if (currentBill.value) {
         currentBill.value.adjustments.push(adjustment)

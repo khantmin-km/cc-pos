@@ -45,13 +45,18 @@ function mapPhysicalTableToTable(
       ? 'occupied'
       : 'available'
 
+  const tableGroupId = pt.current_table_group_id || undefined
+
   // Build and return the Table object
   return {
     id: pt.id,
     number,
     status,
     area: 'indoor' as TableArea,
-    tableGroupId: pt.current_table_group_id || undefined,
+    tableGroupId,
+    tableCode: pt.table_code,
+    groupId: tableGroupId,
+    orderItems: [],
   }
 }
 

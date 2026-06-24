@@ -3,13 +3,12 @@
  * Login / Session Selection View
  * 
  * Allows users to select their role (waiter/admin)
- * and log in to the system.
+ * and log in with username/PIN credentials.
  */
 
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSessionsStore } from '@/stores/sessions'
-import { useWaitersStore } from '@/stores/waiters'
 
 // --------------------------------
 // Setup
@@ -17,18 +16,19 @@ import { useWaitersStore } from '@/stores/waiters'
 
 const router = useRouter()
 const sessionsStore = useSessionsStore()
-const waitersStore = useWaitersStore()
-const ADMIN_PASSWORD = 'admin123'
 
 // --------------------------------
 // State
 // --------------------------------
 
 const selectedRole = ref<'waiter' | 'admin'>('waiter')
-const selectedWaiterId = ref<string>('')
-const adminPassword = ref('')
+const username = ref('')
+const pin = ref('')
 const loading = ref(false)
 const error = ref<string | null>(null)
+
+// Demo credentials hint
+const demoUsername = ref(false)
 
 // --------------------------------
 // Lifecycle
@@ -47,17 +47,20 @@ onMounted(async () => {
   if (sessionsStore.isLoggedIn) {
     const role = sessionsStore.actorType
     router.push(role === 'admin' ? '/admin' : '/waiter')
-    return
-  }
-
-  // Load waiters if switching to waiter role
-  if (selectedRole.value === 'waiter') {
-    await waitersStore.fetchWaiters()
-    if (!selectedWaiterId.value && waitersStore.activeWaiters.length > 0) {
-      selectedWaiterId.value = waitersStore.activeWaiters[0].id
-    }
   }
 })
+
+// --------------------------------
+// Computed
+// --------------------------------
+
+const showDemoHint = () => {
+  if (selectedRole.value === 'admin') {
+    return '(Demo: PIN 1234)'
+  } else {
+    return '(Demo: waiter1, waiter2, waiter3 with PINs 1111, 2222, 3333)'
+  }
+}
 
 // --------------------------------
 // Event Handlers
@@ -69,33 +72,33 @@ async function handleLogin() {
 
   try {
     if (selectedRole.value === 'waiter') {
-      await waitersStore.fetchWaiters()
-      if (!selectedWaiterId.value && waitersStore.activeWaiters.length > 0) {
-        selectedWaiterId.value = waitersStore.activeWaiters[0].id
+      if (!username.value) {
+        error.value = 'Please enter waiter username'
+        return
       }
-      if (!selectedWaiterId.value) {
-        error.value = 'Please select a waiter'
+      if (!pin.value) {
+        error.value = 'Please enter waiter PIN'
         return
       }
 
-      await sessionsStore.login('waiter', selectedWaiterId.value)
+      // For waiter login, use the username and PIN combination
+      await sessionsStore.login('waiter', username.value, pin.value)
       router.push('/waiter')
     } else {
       // Admin login
-      if (!adminPassword.value) {
-        error.value = 'Please enter admin password'
-        return
-      }
-      if (adminPassword.value !== ADMIN_PASSWORD) {
-        error.value = 'Invalid admin password'
+      if (!pin.value) {
+        error.value = 'Please enter admin PIN'
         return
       }
 
-      await sessionsStore.login('admin', 'admin')
+      // For admin login, pass type and PIN
+      await sessionsStore.login('admin', 'admin', pin.value)
       router.push('/admin')
     }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Login failed'
+    if (!error.value) {
+      error.value = e instanceof Error ? e.message : 'Login failed'
+    }
   } finally {
     loading.value = false
   }
@@ -104,15 +107,8 @@ async function handleLogin() {
 async function handleRoleChange(role: 'waiter' | 'admin') {
   selectedRole.value = role
   error.value = null
-  selectedWaiterId.value = ''
-  adminPassword.value = ''
-
-  if (role === 'waiter') {
-    await waitersStore.fetchWaiters()
-    if (waitersStore.activeWaiters.length > 0) {
-      selectedWaiterId.value = waitersStore.activeWaiters[0].id
-    }
-  }
+  username.value = ''
+  pin.value = ''
 }
 </script>
 
@@ -144,28 +140,28 @@ async function handleRoleChange(role: 'waiter' | 'admin') {
 
       <!-- Waiter Login -->
       <div v-if="selectedRole === 'waiter'" class="form-group">
-        <label>Select Waiter</label>
-        <select v-model="selectedWaiterId" :disabled="loading">
-          <option value="">-- Choose a waiter --</option>
-          <option v-for="waiter in waitersStore.activeWaiters" :key="waiter.id" :value="waiter.id">
-            {{ waiter.name }}
-          </option>
-        </select>
+        <label>Waiter Username</label>
+        <input
+          v-model="username"
+          type="text"
+          placeholder="e.g., waiter1"
+          class="text-input"
+        />
+        <small class="hint">{{ showDemoHint() }}</small>
       </div>
 
-      <!-- Admin Login -->
-      <div v-if="selectedRole === 'admin'" class="form-group">
-        <label>Admin Password</label>
+      <!-- PIN Input (for both Waiter and Admin) -->
+      <div class="form-group">
+        <label>{{ selectedRole === 'admin' ? 'Admin PIN' : 'Waiter PIN' }}</label>
         <input
-          v-model="adminPassword"
+          v-model="pin"
           type="password"
-          placeholder="Enter password"
-          :disabled="loading"
+          placeholder="Enter PIN"
+          class="pin-input"
           @keyup.enter="handleLogin"
         />
-        <small class="help-text">
-          Demo password: <b>{{ ADMIN_PASSWORD }}</b>
-        </small>
+        <small v-if="selectedRole === 'admin'" class="hint">{{ showDemoHint() }}</small>
+        <small v-else class="hint">{{ showDemoHint() }}</small>
       </div>
 
       <!-- Error Message -->
@@ -270,6 +266,31 @@ async function handleRoleChange(role: 'waiter' | 'admin') {
   font-size: 14px;
   font-family: inherit;
   transition: border-color 0.2s;
+}
+
+.text-input,
+.pin-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.text-input:focus,
+.pin-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.hint {
+  display: block;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
 }
 
 .form-group select:focus,

@@ -1,17 +1,33 @@
 <script setup lang="ts">
 /**
- * Order Items Management View
+ * Order Items View (Waiter Serving Screen)
  * 
- * Allows waiters to view order items and manage
- * item operations (mark served, void, reprint).
+ * Shows ordered items for a table with serving controls.
+ * Waiter can:
+ * - View all ordered items
+ * - Mark items as served
+ * - Void items (cancel)
+ * - Order more items
+ * - Request bill
  */
 
-import { ref, computed, onMounted } from 'vue'
+// Vue imports
+import {
+  ref,
+  computed,
+  onMounted,
+} from 'vue'
+
+// Router imports
 import { useRouter, useRoute } from 'vue-router'
+
+// Store imports
 import { useOrdersStore } from '@/stores/orders'
-import { useMenuItemsStore } from '@/stores/menuItems'
 import { useTablesStore } from '@/stores/tables'
 import { useTableGroupsStore } from '@/stores/tableGroups'
+
+// Type imports
+import type { OrderItem, Table } from '@/types/pos'
 
 // --------------------------------
 // Setup
@@ -19,85 +35,131 @@ import { useTableGroupsStore } from '@/stores/tableGroups'
 
 const router = useRouter()
 const route = useRoute()
-const ordersStore = useOrdersStore()
-const menuStore = useMenuItemsStore()
-const tablesStore = useTablesStore()
-const groupsStore = useTableGroupsStore()
-
-// --------------------------------
-// State
-// --------------------------------
-
 const tableId = route.params.tableId as string
+
+// Initialize stores
+const ordersStore = useOrdersStore()
+const tablesStore = useTablesStore()
+const tableGroupsStore = useTableGroupsStore()
+
+// State
 const selectedTab = ref<'active' | 'served' | 'voided'>('active')
 const loading = ref(false)
 const error = ref<string | null>(null)
+const billRequested = ref(false)
 
-// --------------------------------
-// Computed
-// --------------------------------
+// Computed properties
+const currentTable = computed(() =>
+  tablesStore.tables.find((t: any) => t.id === tableId)
+)
 
-const currentTable = computed(() => tablesStore.tables.find((t) => t.id === tableId))
-
-const tableGroupId = computed(() => currentTable.value?.tableGroupId)
-
-const allOrderItems = computed(() => {
-  if (!tableGroupId.value) return []
-  return ordersStore.getOrderItemsByTableGroup(tableGroupId.value)
+const tableGroup = computed(() => {
+  if (!currentTable.value) return null
+  const groupId = currentTable.value.current_table_group_id || currentTable.value.tableGroupId
+  if (!groupId) return null
+  return tableGroupsStore.tableGroups.find(g => g.id === groupId) || null
 })
 
+const tableGroupIdValue = computed(() => {
+  return currentTable.value?.current_table_group_id || currentTable.value?.tableGroupId
+})
+
+const hasServiceStarted = computed(() => !!tableGroupIdValue.value)
+
+const tableGroupState = computed(() => {
+  const group = tableGroupsStore.backendGroups.find(g => g.id === tableGroupIdValue.value)
+  return group?.state || null
+})
+
+const isBillRequested = computed(() => {
+  return billRequested.value || tableGroup.value?.billingStatus === 'bill_requested' || tableGroupState.value === 'bill_requested'
+})
+
+const canRequestBill = computed(() => {
+  return hasServiceStarted.value && tableGroupState.value === 'open' && !isBillRequested.value
+})
+
+// Filter order items by status
 const activeItems = computed(() => {
-  return allOrderItems.value.filter((item) => !item.served && !item.removed)
+  return ordersStore.orderItems.filter((item) => !item.served && !item.removed)
 })
 
 const servedItems = computed(() => {
-  return allOrderItems.value.filter((item) => item.served)
+  return ordersStore.orderItems.filter((item) => item.served)
 })
 
 const voidedItems = computed(() => {
-  return allOrderItems.value.filter((item) => item.removed)
-})
-
-const displayItems = computed(() => {
-  switch (selectedTab.value) {
-    case 'served':
-      return servedItems.value
-    case 'voided':
-      return voidedItems.value
-    default:
-      return activeItems.value
-  }
-})
-
-// --------------------------------
-// Lifecycle
-// --------------------------------
-
-onMounted(async () => {
-  loading.value = true
-  try {
-    await Promise.all([
-      menuStore.fetchMenuItems(),
-      tablesStore.fetchTables(),
-      groupsStore.fetchOpenGroups(),
-    ])
-  } catch (e) {
-    error.value = 'Failed to load data'
-  } finally {
-    loading.value = false
-  }
+  return ordersStore.orderItems.filter((item) => item.removed)
 })
 
 // --------------------------------
 // Event Handlers
 // --------------------------------
 
-async function handleMarkServed(itemId: string) {
-  try {
-    await ordersStore.markOrderItemServed(itemId)
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to mark served'
+function handleBackToTables() {
+  router.push('/waiter')
+}
+
+function handleBackToMenu() {
+  if (tableId) {
+    router.push(`/waiter/menu/${tableId}`)
   }
+}
+
+function handleMarkServed(item: OrderItem) {
+  ordersStore.markOrderItemServed(item.id)
+}
+
+function handleVoidItem(item: OrderItem) {
+  if (confirm(`Are you sure you want to void this item?\n${item.menuItemId}`)) {
+    ordersStore.voidOrderItem(item.id)
+  }
+}
+
+async function handleRequestBill() {
+  if (!tableGroupIdValue.value) {
+    alert('No active table group found')
+    return
+  }
+
+  if (isBillRequested.value) {
+    alert('Bill already requested for this table')
+    return
+  }
+
+  loading.value = true
+  error.value = null
+
+  try {
+    await tableGroupsStore.requestBill(tableGroupIdValue.value)
+    billRequested.value = true
+    alert('Bill request sent to admin successfully!')
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Failed to request bill'
+    error.value = msg
+    console.error('Bill request failed:', e)
+    alert('Failed to request bill: ' + msg)
+  } finally {
+    loading.value = false
+  }
+}
+
+function handleTabChange(tab: 'active' | 'served' | 'voided') {
+  selectedTab.value = tab
+}
+
+function getItemColor(item: OrderItem): string {
+  if (item.removed) return '#fees2e2'
+  if (item.served) return '#dcfce7'
+  if (item.kitchenPrinted) return '#fef3c7'
+  return '#f0f4ff'
+}
+
+function getStatusLabel(item: OrderItem): string {
+  if (item.removed) return 'VOIDED'
+  if (item.served) return 'SERVED'
+  if (item.kitchenPrinted) return 'PRINTED'
+  return 'PENDING'
 }
 
 async function handleVoid(itemId: string) {
@@ -119,27 +181,42 @@ async function handleReprint(itemId: string) {
   }
 }
 
-function handleBackToMenu() {
-  router.push(`/waiter/menu/${tableId}`)
-}
+// --------------------------------
+// Lifecycle
+// --------------------------------
 
-function handleBackToTables() {
-  router.push('/waiter')
-}
+onMounted(async () => {
+  if (!tableId) return
+  
+  try {
+    loading.value = true
+    
+    // Load current table info
+    await tablesStore.fetchTables()
+    
+    // Load table groups
+    await tableGroupsStore.fetchOpenGroups()
+    
+    // Load order items for this table
+    await ordersStore.fetchOrderItems(tableId)
+    
+  } catch (e) {
+    error.value = 'Failed to load order items'
+    console.error('Load failed:', e)
+  } finally {
+    loading.value = false
+  }
+})
 
-function getItemColor(item: any): string {
-  if (item.removed) return '#fees2e2'
-  if (item.served) return '#dcfce7'
-  if (item.kitchenPrinted) return '#fef3c7'
-  return '#f0f4ff'
-}
-
-function getStatusLabel(item: any): string {
-  if (item.removed) return 'VOIDED'
-  if (item.served) return 'SERVED'
-  if (item.kitchenPrinted) return 'PRINTED'
-  return 'PENDING'
-}
+// Computed properties for display items
+const displayItems = computed(() => {
+  switch (selectedTab.value) {
+    case 'active': return activeItems.value
+    case 'served': return servedItems.value  
+    case 'voided': return voidedItems.value
+    default: return []
+  }
+})
 </script>
 
 <template>
@@ -150,13 +227,18 @@ function getStatusLabel(item: any): string {
         <button class="nav-btn" @click="handleBackToMenu">← Order More</button>
         <button class="nav-btn" @click="handleBackToTables">↩ Back to Tables</button>
       </div>
-      <h1>{{ currentTable?.number ? `Table ${currentTable.number}` : 'Table' }} - Items</h1>
+      <h1>{{ currentTable?.tableCode || 'Table' }} - Items</h1>
       <div class="spacer"></div>
     </header>
 
     <!-- Error Message -->
     <div v-if="error" class="error-banner">
       {{ error }}
+    </div>
+
+    <!-- Bill Requested Banner -->
+    <div v-if="isBillRequested" class="bill-requested-banner">
+      ✅ Bill has been requested - Waiting for admin to process
     </div>
 
     <!-- Tabs -->
@@ -213,7 +295,7 @@ function getStatusLabel(item: any): string {
 
         <!-- Action Buttons -->
         <div v-if="selectedTab === 'active'" class="actions">
-          <button class="btn btn-serve" @click="handleMarkServed(item.id)" :disabled="ordersStore.loading">
+          <button class="btn btn-serve" @click="handleMarkServed(item)" :disabled="ordersStore.loading">
             ✓ Served
           </button>
           <button class="btn btn-reprint" @click="handleReprint(item.id)" :disabled="ordersStore.loading">
@@ -224,6 +306,20 @@ function getStatusLabel(item: any): string {
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- Fixed Request Bill Button at Bottom -->
+    <div v-if="hasServiceStarted" class="fixed-bottom-bar">
+      <button
+        class="request-bill-btn"
+        :class="{ requested: isBillRequested }"
+        @click="handleRequestBill"
+        :disabled="loading"
+      >
+        <span v-if="isBillRequested">✅ Bill Already Requested</span>
+        <span v-else-if="loading">Sending Request...</span>
+        <span v-else>💳 Request Bill</span>
+      </button>
     </div>
   </div>
 </template>
@@ -285,6 +381,16 @@ function getStatusLabel(item: any): string {
   color: #dc2626;
   padding: 12px 20px;
   font-size: 14px;
+}
+
+.bill-requested-banner {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  border-bottom: 2px solid #f59e0b;
 }
 
 .tabs {
@@ -452,8 +558,78 @@ function getStatusLabel(item: any): string {
   background: #dc2626;
 }
 
+.bill-request-btn {
+  background: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.bill-request-btn:hover {
+  background: #d97706;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+}
+
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Fixed bottom bar for Request Bill */
+.fixed-bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  padding: 16px 20px;
+  border-top: 2px solid #e2e8f0;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.request-bill-btn {
+  width: 100%;
+  padding: 16px;
+  background: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.request-bill-btn:hover:not(:disabled) {
+  background: #d97706;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4);
+}
+
+.request-bill-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.request-bill-btn.requested {
+  background: #22c55e;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.request-bill-btn.requested:hover {
+  background: #16a34a;
+}
+
+/* Add padding to items list to account for fixed bottom bar */
+.items-list {
+  padding-bottom: 100px;
 }
 </style>

@@ -176,6 +176,117 @@ async function handleCloseTables() {
   }
 }
 
+async function handlePrintReceipt() {
+  if (!selectedGroup.value || !billingStore.currentBill) return
+
+  loading.value = true
+  error.value = null
+
+  try {
+    // Create a printable receipt
+    const receiptContent = generateReceiptContent()
+    
+    // Open print dialog
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(receiptContent)
+      printWindow.document.close()
+      printWindow.print()
+      printWindow.close()
+      
+      successMsg.value = 'Receipt printed successfully'
+      setTimeout(() => (successMsg.value = null), 3000)
+    } else {
+      throw new Error('Could not open print window')
+    }
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to print receipt'
+  } finally {
+    loading.value = false
+  }
+}
+
+function generateReceiptContent(): string {
+  if (!billingStore.currentBill || !selectedGroup.value) return ''
+
+  const bill = billingStore.currentBill
+  const tableLabels = getGroupTableLabels(selectedGroup.value.tableIds)
+  const date = new Date().toLocaleString()
+  
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Receipt - ${tableLabels.join(' + ')}</title>
+      <style>
+        body { font-family: monospace; margin: 20px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .header p { margin: 5px 0; color: #666; }
+        .info { margin-bottom: 20px; }
+        .items { margin-bottom: 20px; }
+        .item-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .total-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-weight: bold; }
+        .grand-total { border-top: 2px solid #000; padding-top: 5px; }
+        .footer { text-align: center; margin-top: 30px; color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>KAUNG KAUNG</h1>
+        <p>Restaurant Receipt</p>
+        <p>${date}</p>
+      </div>
+      
+      <div class="info">
+        <p><strong>Table:</strong> ${tableLabels.join(' + ')}</p>
+        <p><strong>Bill ID:</strong> ${bill.id}</p>
+      </div>
+      
+      <div class="items">
+        <h3>Items</h3>
+        ${bill.items.map(item => `
+          <div class="item-row">
+            <span>${item.itemName} × ${item.quantity}</span>
+            <span>${item.lineTotal.toFixed(2)}</span>
+          </div>
+        `).join('')}
+      </div>
+      
+      <div class="totals">
+        <div class="total-row">
+          <span>Subtotal:</span>
+          <span>${bill.subtotal.toFixed(2)}</span>
+        </div>
+        <div class="total-row">
+          <span>Tax:</span>
+          <span>${bill.tax.toFixed(2)}</span>
+        </div>
+        <div class="total-row">
+          <span>Service Charge:</span>
+          <span>${bill.serviceCharge.toFixed(2)}</span>
+        </div>
+        ${bill.adjustments ? bill.adjustments.map(adj => `
+          <div class="total-row">
+            <span>${adj.description}:</span>
+            <span>${adj.amount < 0 ? '-' : '+'}${Math.abs(adj.amount).toFixed(2)}</span>
+          </div>
+        `).join('') : ''}
+        <div class="total-row grand-total">
+          <span>TOTAL:</span>
+          <span>${bill.total.toFixed(2)}</span>
+        </div>
+      </div>
+      
+      <div class="footer">
+        <p>Thank you for dining with us!</p>
+        <p>Please come again</p>
+      </div>
+    </body>
+    </html>
+  `
+}
+
 async function handleCreateAdjustment() {
   if (!selectedGroupId.value) return
   if (!adjustmentForm.value.description || adjustmentForm.value.amount === undefined) {
@@ -212,6 +323,7 @@ function getGroupState(groupId: string): string {
 
 function getTableLabel(tableId: string): string {
   const table = tablesStore.getTableById(tableId)
+  if (table?.tableCode) return table.tableCode
   if (table && table.number > 0) return `Table ${table.number}`
   return `Table ${tableId.slice(0, 8)}`
 }
@@ -456,6 +568,13 @@ function closeBillDetails() {
         </div>
 
         <div v-else-if="selectedGroup && getGroupState(selectedGroup.id) === 'paid'" class="payment-section">
+          <button
+            class="btn btn-info btn-large"
+            @click="handlePrintReceipt"
+            :disabled="loading"
+          >
+            {{ loading ? 'Printing...' : 'Print Receipt' }}
+          </button>
           <button
             class="btn btn-danger btn-large"
             @click="handleCloseTables"
@@ -856,6 +975,15 @@ function closeBillDetails() {
 
 .btn-danger:hover:not(:disabled) {
   background: #dc2626;
+}
+
+.btn-info {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-info:hover:not(:disabled) {
+  background: #2563eb;
 }
 
 .btn-large {

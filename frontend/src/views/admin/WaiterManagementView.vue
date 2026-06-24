@@ -53,11 +53,7 @@ const displayWaiters = computed(() => {
 // --------------------------------
 
 onMounted(async () => {
-  try {
-    await waitersStore.fetchWaiters(showInactive.value)
-  } catch (e) {
-    error.value = 'Failed to load waiters'
-  }
+  await waitersStore.fetchWaiters()
 })
 
 // --------------------------------
@@ -65,20 +61,15 @@ onMounted(async () => {
 // --------------------------------
 
 async function handleCreateWaiter() {
-  if (!newWaiter.value.name.trim()) {
-    error.value = 'Please enter waiter name'
-    return
-  }
-
   loading.value = true
   error.value = null
+  successMsg.value = null
 
   try {
     await waitersStore.createWaiter(newWaiter.value)
     successMsg.value = 'Waiter created successfully'
-    showCreateForm.value = false
     newWaiter.value = { name: '' }
-    setTimeout(() => (successMsg.value = null), 3000)
+    showCreateForm.value = false
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to create waiter'
   } finally {
@@ -99,12 +90,13 @@ async function handleSaveEdit() {
 
   loading.value = true
   error.value = null
+  successMsg.value = null
 
   try {
     await waitersStore.updateWaiter(editingWaiterId.value, editForm.value)
     successMsg.value = 'Waiter updated successfully'
     editingWaiterId.value = null
-    setTimeout(() => (successMsg.value = null), 3000)
+    editForm.value = {}
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to update waiter'
   } finally {
@@ -115,30 +107,20 @@ async function handleSaveEdit() {
 async function handleToggleActive(waiterId: string, currentStatus: boolean) {
   loading.value = true
   error.value = null
+  successMsg.value = null
 
   try {
     await waitersStore.updateWaiter(waiterId, { active: !currentStatus })
-    successMsg.value = 'Waiter status updated'
-    setTimeout(() => (successMsg.value = null), 3000)
+    successMsg.value = `Waiter ${!currentStatus ? 'activated' : 'deactivated'} successfully`
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to update waiter'
+    error.value = e instanceof Error ? e.message : 'Failed to update waiter status'
   } finally {
     loading.value = false
   }
 }
 
 async function handleShowInactiveChange() {
-  loading.value = true
-  error.value = null
-
-  try {
-    await waitersStore.fetchWaiters(!showInactive.value)
-    showInactive.value = !showInactive.value
-  } catch (e) {
-    error.value = 'Failed to load waiters'
-  } finally {
-    loading.value = false
-  }
+  await waitersStore.fetchWaiters(showInactive.value)
 }
 
 function cancelEdit() {

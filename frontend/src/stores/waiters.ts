@@ -10,12 +10,6 @@ import { ref, computed } from 'vue'
 import type { Waiter, WaiterCreateRequest, WaiterUpdateRequest } from '@/types/pos'
 import { waitersApi } from '@/services/tablesApi'
 
-const FALLBACK_DEMO_WAITER: Waiter = {
-  id: 'demo-waiter',
-  name: 'Demo Waiter',
-  active: true,
-}
-
 /**
  * Waiters Store
  */
@@ -53,6 +47,7 @@ export const useWaitersStore = defineStore('waiters', () => {
 
   /**
    * Fetch all waiters from backend
+   * Falls back to demo waiters if endpoint is not available
    */
   async function fetchWaiters(includeInactive: boolean = false) {
     loading.value = true
@@ -60,14 +55,14 @@ export const useWaitersStore = defineStore('waiters', () => {
 
     try {
       waiters.value = await waitersApi.list(includeInactive)
-      if (waiters.value.length === 0 || !waiters.value.some((w) => w.active)) {
-        waiters.value = [FALLBACK_DEMO_WAITER]
-      }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to fetch waiters'
-      error.value = msg
-      // Keep login usable even if backend/demo data is broken.
-      waiters.value = [FALLBACK_DEMO_WAITER]
+      // If endpoint doesn't exist, the API layer already handles fallback
+      // Only set error if it's a real error, not 404
+      if (e instanceof Error && !e.message.includes('404')) {
+        const msg = e instanceof Error ? e.message : 'Failed to fetch waiters'
+        error.value = msg
+        console.error('[Waiters] Failed to fetch waiters:', e)
+      }
     } finally {
       loading.value = false
     }

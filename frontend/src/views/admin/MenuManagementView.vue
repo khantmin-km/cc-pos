@@ -19,7 +19,7 @@ import type { MenuItem, MenuItemCreateRequest, MenuItemUpdateRequest } from '@/t
 // --------------------------------
 
 const menuStore = useMenuItemsStore()
-const CATEGORY_OPTIONS = ['Main Dish', 'Side Dish', 'Appetizer', 'Beverages']
+const CATEGORY_OPTIONS = ['Main Dish', 'Side Dish', 'Appetizer', 'Beverages', 'Mookata', 'Add-on']
 
 // --------------------------------
 // State
@@ -131,20 +131,48 @@ function handleEditItem(item: MenuItem) {
 async function handleSaveEdit() {
   if (!editingItemId.value) return
 
+  // Validate form data
+  if (!editForm.value.name || editForm.value.name.trim() === '') {
+    error.value = 'Item name is required'
+    return
+  }
+  if (!editForm.value.price || editForm.value.price <= 0) {
+    error.value = 'Item price must be greater than 0'
+    return
+  }
+  if (!editForm.value.category) {
+    error.value = 'Item category is required'
+    return
+  }
+
   loading.value = true
   error.value = null
 
   try {
-    await menuStore.updateMenuItem(editingItemId.value, editForm.value)
+    // Ensure price is a number
+    const updateRequest: MenuItemUpdateRequest = {
+      name: editForm.value.name?.trim() || '',
+      price: Number(editForm.value.price),
+      category: editForm.value.category,
+      available: editForm.value.available ?? true,
+    }
+
+    console.log('[MenuManagement] Sending update request:', { id: editingItemId.value, ...updateRequest })
+    
+    await menuStore.updateMenuItem(editingItemId.value, updateRequest)
+    
     if (editImageFile.value) {
       await menuStore.uploadMenuItemImage(editingItemId.value, editImageFile.value)
     }
+    
     successMsg.value = 'Menu item updated successfully'
     editingItemId.value = null
     editImageFile.value = null
     setTimeout(() => (successMsg.value = null), 3000)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to update item'
+    const errorMsg = e instanceof Error ? e.message : 'Failed to update item'
+    console.error('[MenuManagement] Update error:', e)
+    error.value = errorMsg
   } finally {
     loading.value = false
   }
@@ -327,7 +355,7 @@ function handleEditImageChange(event: Event) {
               class="item-photo"
             />
             <h4>{{ item.name }}</h4>
-            <p>{{ item.category }} | {{ item.price.toFixed(2) }}</p>
+            <p>{{ item.category }} | ${{ Number(item.price).toFixed(2) }}</p>
             <p v-if="!item.available" class="status-retired">Retired</p>
           </div>
           <div class="actions">
